@@ -5,13 +5,13 @@
  * Author: Greg Ercolano, erco@seriss.com
  *
  * Created on Apr 24, 2019, 06:29 PM
- * Compiler: MPLAB X IDE V5.10 + XC8 -- Microchip.com
+ * Compiler: MPLAB X IDE V5.50 + XC8 -- Microchip.com
  *
  * Drive the 1A2 Multiline Phone Control board, CPU2 Firmware.
  *                               _    _
  *                           V+ | |__| | GND
- *              x (OUT) -- RA5  |      | RA0 -- (OUT) EXT8 BUZZ
- *              x (OUT) -- RA4  |      | RA1 -- (OUT) EXT7 BUZZ
+ *               x (IN) -- RA5  |      | RA0 -- (OUT) EXT8 BUZZ
+ *               x (IN) -- RA4  |      | RA1 -- (OUT) EXT7 BUZZ
  *        (MCLR) X (IN) -- RA3  |      | RA2 -- (OUT) EXT6 BUZZ
  *      MT8870 STD (IN) -- RC5  |      | RC0 -- (OUT) EXT5 BUZZ
  *     CPU STATUS (OUT) -- RC4  |      | RC1 -- (IN) ROTARY PULSE
@@ -21,10 +21,10 @@
  *      EXT1 BUZZ (OUT) -- RB7  |______| RB6 -- (IN) DTMF 'a'
  *
  *                         PIC16F1709 / CPU2
- *                           REV G, G1, H
+ *                        REV G, G1, H, J, J4
  *
  *      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- *      Copyright (C) 2019 Seriss Corporation.
+ *      Copyright (C) 2019,2021 Seriss Corporation.
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -43,9 +43,18 @@
  * For the GPL license, see COPYING in the top level directory.
  * For board revisions, see REVISIONS in the top level directory.
  *
+ * ************************************************************************
+ *
+ * V1.4: > Removed SECONDARY_DET -- this can't be used; when CPU2 powered down,
+ *         it clamps the signal to ground disabling it from being seen by CPU1.
+ *         In V1.4, first actual use of SECONDARY_DET, CPU1 /needs/ to see it,
+ *         CPU2 does not. So it was simply removed for V1.4 to work properly.
+ *
+ *       > Unused ports were all switched to inputs.
+ *
  */
 
-// REVISION G / CPU2                                    Port(ABC)
+// REVISION G thru J4 / CPU2                            Port(ABC)
 //                                   76543210           |Bit# in port
 // Inputs                            ||||||||           ||
 #define MT8870_STD     ((G_portc & 0b00100000)?1:0) // RC5: goes hi when dial button pressed
@@ -54,7 +63,6 @@
 #define DTMF_c         ((G_portb & 0b00010000)?1:0) // RB4: data bit 'c' from MT8870 of which dial button pressed
 #define DTMF_d         ((G_portc & 0b00000100)?1:0) // RC2: data bit 'd' from MT8870 of which dial button pressed
 #define ROTARY_PULSE   ((G_portc & 0b00000010)?1:0) // RC1: rotary pulse
-#define SECONDARY_DET  ((G_porta & 0b00100000)?1:0) // RA5: detects if card configured as SECONDARY (JP4) [currently unused]
 
 // Outputs
 #define CPU_STATUS_LED LATCbits.LATC4               // RC4: hi to turn LED on
@@ -102,21 +110,22 @@
 // DEFINES
 #define uchar unsigned char
 #define uint  unsigned int
+#define ulong unsigned long
 #define ITERS_PER_SEC        500    // while() loop iters per second (Hz). *MUST BE EVENLY DIVISIBLE INTO 1000*
 #define ROTARY_BUZZ_MSECS    800    // how many msecs a rotary dialed extension's buzzer should buzz (almost 1 sec)
 #define ROTARY_MAX_OFF_MSECS 200    // determines when dialing completed
 #define ROTARY_POWERUP_MSECS 500    // how long to wait after powerup before doing rotary detect
 
-// Dialing struct
-//     Variables related to dial management
+// Rotary dialing struct
+//     Variables related to rotary dial management
 //
 typedef struct {
     uchar mode;        // 0=idle, 1=digit pulse, 2=digit space, 3=dialing completed
-    uchar digit;       // digit dialed
-    int   on_msecs;    // (rotary) #msecs debounced rotary detector was "on"
-    int   off_msecs;   // (rotary) #msecs debounced rotary detector was "off"
-    int   buzz_msecs;  // counts how long to run buzzer after dialing an extension
-} Dial;
+    uchar digit;       // rotary digit dialed
+    int   on_msecs;    // #msecs debounced rotary detector was "on"
+    int   off_msecs;   // #msecs debounced rotary detector was "off"
+    int   buzz_msecs;  // counts how long to run buzzer after rotary dialing an extension
+} Rotary;
 
 // GLOBALS
 const int   G_msecs_per_iter = (1000/ITERS_PER_SEC); // #msecs per iter (if ITERS_PER_SEC=125, this is 8)
@@ -144,8 +153,8 @@ void RotaryDebounceInit(Debounce *d) {
     d->thresh     = 10; // 15;
 }
 
-// Initialize the Dial struct's values to zero
-void DialInit(Dial *r) {
+// Initialize the Rotary struct's values to zero
+void RotaryInit(Rotary *r) {
     r->mode       = 0;
     r->digit      = 0;
     r->on_msecs   = 0;
@@ -207,15 +216,14 @@ void Init() {
     //       '1' configures an input, '0' configures an output.
     //       'X' indicates a don't care/not implemented on this chip hardware.
     //       NOTE: A3 is INPUT ONLY.
-    //
-    TRISA  = 0b00001000; // data direction for port A (0=output, 1=input)
-    WPUA   = 0b00001000; // enable 'weak pullup resistors' for all inputs
+    TRISA  = 0b00111000; // data direction for port A (0=output, 1=input)
+    WPUA   = 0b00111000; // enable 'weak pullup resistors' for all inputs
     //         ||||||||_ A0 (OUT) EXT8 BUZZ
     //         |||||||__ A1 (OUT) EXT7 BUZZ
     //         ||||||___ A2 (OUT) EXT6 BUZZ
     //         |||||____ A3 (IN)  unused/MCLR
-    //         ||||_____ A4 (OUT) unused
-    //         |||______ A5 (OUT) unused
+    //         ||||_____ A4 (IN)  unused
+    //         |||______ A5 (IN)  unused
     //         ||_______ X
     //         |________ X
 
@@ -298,16 +306,15 @@ void BuzzExtension(int num) {
 //     This runs at approx 60Hz
 //
 void __interrupt() isr(void) {
-    //static char count = 0;        // DEBUG
     if ( INTCONbits.TMR0IF ) {      // int timer overflow?
         INTCONbits.TMR0IF = 0;      // clear bit for next overflow
         BuzzExtension(G_buzz_ext);  // run selected buzzer
     }
 }
 
-// Reset the dial counters and deenergize any buzzers
-void DialReset(Dial *r) {
-    DialInit(r);
+// Reset the rotary counters and deenergize any buzzers
+void RotaryReset(Rotary *r) {
+    RotaryInit(r);
     G_buzz_ext = -1;        // all buzzer coils off
 }
 
@@ -328,7 +335,7 @@ void DialReset(Dial *r) {
 //                         \/               \/
 //                       noise            noise
 //
-void HandleRotaryDialing(Dial *r, Debounce *d) {
+void HandleRotaryDialing(Rotary *r, Debounce *d) {
     // Debounce the "ROTARY_PULSE" input
     int is_rotary_pulse = DebounceNoisyInput(d, ROTARY_PULSE);
 
@@ -341,7 +348,7 @@ void HandleRotaryDialing(Dial *r, Debounce *d) {
     if ( is_rotary_pulse ) {
         // PULSE
         if ( r->mode == 0 || r->mode == 3 ) // Begin new dialing sequence?
-             DialReset(r);                  // Reset rotary system, stop buzzers
+             RotaryReset(r);                // Reset rotary system, stop buzzers
         r->mode = 1;
         if ( r->off_msecs )                 // Just finished counting "off time"?
             r->off_msecs = 0;               // ..then this is rising edge: zero off timer
@@ -366,7 +373,7 @@ void HandleRotaryDialing(Dial *r, Debounce *d) {
 //     Also handles preventing switch hook pickup noise from causing false dialing.
 //     NOTE: When "0" is dialed, a 10 is generated
 //
-int GetRotaryDigit(Dial *r, Debounce *d) {
+int GetRotaryDigit(Rotary *r, Debounce *d) {
     // Early exit if recent pickup
     if ( G_powerup_msecs < ROTARY_POWERUP_MSECS ) return -1;
 
@@ -375,7 +382,7 @@ int GetRotaryDigit(Dial *r, Debounce *d) {
     // Valid digit recently dialed (mode=3), and buzzer still running?
     if ( r->mode == 3 && r->buzz_msecs > 0 ) {
         r->buzz_msecs -= G_msecs_per_iter;            // count buzz timer down to zero
-        if ( r->buzz_msecs <= 0 ) DialReset(r);       // stop buzzer, done
+        if ( r->buzz_msecs <= 0 ) RotaryReset(r);     // stop buzzer, done
         else                      return r->digit;    // return digit to keep buzzing
     }
     return -1;
@@ -408,15 +415,15 @@ void SampleInputs() {
 
 void main(void) {
     int digit;          // dtmf or rotary dialed digit
-    Dial rot;           // dial management struct
+    Rotary rot;         // rotary management struct
     Debounce rdeb;      // rotary debounce/hysteresis struct
 
     // Initialize PIC chip
     Init();
 
     // Initialize rotary structs/hardware
-    DialInit(&rot);
-    DialReset(&rot);
+    RotaryInit(&rot);
+    RotaryReset(&rot);
     RotaryDebounceInit(&rdeb);
 
     // Loop at ITERS_PER_SEC
@@ -472,7 +479,6 @@ void main(void) {
 
         // Powerup counter
         //     Counts up from zero then stops after 10 secs, leaving counter >=10000.
-        //
         if ( G_powerup_msecs < 10000 ) G_powerup_msecs += G_msecs_per_iter;
     }
 }
