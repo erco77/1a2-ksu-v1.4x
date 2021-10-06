@@ -11,6 +11,9 @@
  */
 
 // TODO:
+//
+//     * (WIP) Move data bit parsing from int handler to main()
+//
 //     * Check iteration loop speed to make sure it's what it used to be.
 //       Try flashing the L1 lamps each iter, and check on scope.
 //
@@ -107,52 +110,21 @@
  * V1.4
  *     * Much changed, this code now depends on REV-J4 board and up.
  *     * Changed INLVLA/B/C from default (TTL?) to Schmitt
- *     * Lock ring cadence between PRIMARY and SECONDARY (using new Interrupter)
+ *     * Ringing is synchronized between PRIMARY and SECONDARY (interlinked)
+ *     * Bell System's "Interrupter" concept used for synced ring/lamps
  *     * Changed BUZZ_60Hz from software generated to hardware (PWM/CCP/PPS)
  *       (allows bidir send/recv of 8data reliably over SYNC_ILINK)
  *
- * NOTES ON ABOVE:
- *       New "Interrupter" class struct created, emulating the Bell System KSU
- *       interrupter, when enabled, it generates ringing and lamp flashing signals
- *       which are synchronized across interlinked boards.
+ * For details on V1.4 mods, see:
  *
- *       PRIMARY's running interrupter is "master"; it sends data to SECONDARY
- *       to directly change SECONDARY's internal interrupter variables so that
- *       they're locked in sync. (ring_relay, ring_flash, hold_flash).
- *       The SECONDARY sends data back to the PRIMARY indicating if it wants
- *       the interrupter to start running (e.g. incoming call or line on Hold)
- *       or not (if ringing ends, or all held calls are released)
+ *     * REVISIONS file for V1.4 and REV-J4 details
  *
- *       For this synchronization, we use SYNC_ILINK as bidir data transfer line:
- *           > Transmitter: goes low for either 5 cycles (0) or 10 cycles (1)
- *           > Receiver: Enables IOC (Interrupt On Change) to time pulse width:
- *             >> Low transition: TMR2 is zeroed, and on hi transition, TMR2 is
- *             >> High transition: TMR2 is read to see how long SYNC_ILINK was low
+ *     * README-firmware-description.txt, sections:
+ *            > BIDIRECTIONAL DATA
+ *            > V1.4 and REV-J4 notes
  *
- *       The timing of the signal determines a 1 or 0 bit. Bits are counted in
- *       the variable G_data_index. The first two bits transmitted are always
- *       (1) and (0) which are used as a timing reference for subsequent data bits.
- *
- *       The PRIMARY is always first to send:
- *           PRIMARY sends XMIT_BITS of data to SECONDARY
- *           PRIMARY switches to recv mode
- *           SECONDARY switches to xmit mode, sends XMIT_BITS back to PRIMARY
- *
- *       For this scheme to work, our firmware needs to know if the board it's
- *       running on is configured as PRIMARY or SECONDARY. SECONDARY_DET must
- *       be implemented for this to work. (Note: this works only in REV-J4 and up!)
- *
- *       PRIMARY should xmit first with state of:
- *            > Ring cadence - 1 if ringing, 0 if not
- *            > Ring flash   - 1 if lamp on during ring flash, 0 if lamp off
- *            > Hold flash   - 1 if lamp on during hold flash, 0 if lamp off
- *
- *       SECONDARY should xmit back with state of:
- *            > Any line ringing? (0=no, 1=yes)
- *            > Any line on hold? (0=no, 1=yes)
- *
- *       If any line is ringing or on hold, this should cause PRIMARY to
- *       start its interrupter (if not already).
+ *     * README-circuit-description.html, sections:
+ *            > IMPLEMENTATION OF BIDIR DATA TRANSMISSION
  */
 
 #define ABS(a)          (((a)<0)?-(a):(a))
@@ -322,6 +294,7 @@ uint        G_iter            = 1;     // iteration counter (1-250)
 
 volatile uchar G_data_index = 0;         // data array index
 volatile uchar G_data_times[8];          // TMR0 counts for each data bit (indexed by G_data_index)
+volatile uchar G_data_received = 0;      // int handler sets to flag main() to parse complete data
 volatile uchar G_remote_line_ring = 0;   // PRIMARY: 1 if remote (SECONDARY) has a line ringing
 volatile uchar G_remote_line_hold = 0;   // PRIMARY: 1 if remote (SECONDARY) has line on hold
 
@@ -358,15 +331,15 @@ volatile uchar G_remote_line_hold = 0;   // PRIMARY: 1 if remote (SECONDARY) has
 //
 
 // TMR0 enable/disable interrupt on overflow
-void TMR0IntOnOverflow(int onoff) {
-    if ( onoff == 1 ) {
-        TMR0              = 0;  // reset timer
-        INTCONbits.TMR0IF = 0;  // zero IF
-        INTCONbits.TMR0IE = 1;  // enable int on overflow
-    } else {
-        INTCONbits.TMR0IE = 0;  // disable int on overflow
-        INTCONbits.TMR0IF = 0;  // zero IF
-    }
+void EnableTMR0IntOnOverflow() {
+    TMR0              = 0;  // reset timer
+    INTCONbits.TMR0IF = 0;  // zero IF
+    INTCONbits.TMR0IE = 1;  // enable int on overflow
+}
+
+void DisableTMR0IntOnOverflow() {
+    INTCONbits.TMR0IE = 0;  // disable int on overflow
+    INTCONbits.TMR0IF = 0;  // zero IF
 }
 
 // Configure hardware to receive data over the SYNC pin.
@@ -384,8 +357,7 @@ void DataRecvMode() {
 
 // Configure hardware to send data over SYNC pin.
 void DataXmitMode() {
-    // TMR0 disable int on overflow
-    TMR0IntOnOverflow(0);
+    DisableTMR0IntOnOverflow();           // TMR0 unused during xmit
     // IOC disable
     IOCBPbits.IOCBP6   = 0;               // disable IOC on pos SYNC bit (B6)
     IOCBNbits.IOCBN6   = 0;               // disable IOC on neg SYNC bit (B6)
@@ -505,7 +477,7 @@ void __interrupt() isr(void) {
             IOCBFbits.IOCBF6 = 0;             // ack int
             TMR0 = 0;                         // reset TMR0 to time how long SYNC is low
             if ( G_data_index == 0 ) {        // first bit of data?
-                TMR0IntOnOverflow(1);         // Start TMR0 int on overflow
+                EnableTMR0IntOnOverflow();    // overflow tells us waited too long for data bit
             }
         } else if ( IS_SYNC_POS_EDGE ) {      // RB6 (SYNC) became positive?
             IOCBFbits.IOCBF6 = 0;             // ack int
@@ -513,17 +485,8 @@ void __interrupt() isr(void) {
                 G_data_times[G_data_index++] = tmr0; // save TMR0 timings for Recv() to parse later
 
                 if ( G_data_index == XMIT_BITS ) {   // all bits recvd?
-                    TMR0IntOnOverflow(0);            // TMR0 disable overflow ints: all bits recv'd OK
-                    if ( IS_SECONDARY ) {            // Secondary turns around with reply
-                        HandleRecv();                // we have to handle what we recvd here or we'll loose it
-                        DataXmitMode();              // switch to xmit mode
-                        __delay_us(800);             // spacing between send/reply bytes
-                        Send();                      // send secondary data to primary
-                        DataRecvMode();              // return to recv mode
-                    } else {
-                        // PRIMARY? Remain in recv mode until our next xmit
-                        HandleRecv();
-                    }
+                    DisableTMR0IntOnOverflow();      // ..no need for overflow ints
+                    G_data_received = 1;             // flags main() data was received to parse it
                 }
             }
         }
@@ -1399,6 +1362,25 @@ void main(void) {
                 DataXmitMode();  // switch to xmit mode
                 Send();          // send data to secondary
                 DataRecvMode();  // immediately switch to recv mode, expect secondary to reply
+            }
+        }
+
+        // DATA RECEIVED FROM OTHER BOARD VIA INTERRUPT HANDLER?
+        //    Parse and switch modes as needed.
+        //    Do this here in main() instead of in interrupt handler
+        //    to keep ints short.
+        //
+        if ( G_data_received ) {
+            G_data_received = 0;      // 'acknowledge' receipt
+            if ( IS_SECONDARY ) {     // Secondary turns around with reply
+                HandleRecv();         // we have to handle what we recvd here or we'll loose it
+                DataXmitMode();       // switch to xmit mode
+                __delay_us(800);      // spacing between send/reply bytes
+                Send();               // send secondary data to primary
+                DataRecvMode();       // return to recv mode
+            } else {
+                // PRIMARY? Remain in recv mode until our next xmit
+                HandleRecv();
             }
         }
 
