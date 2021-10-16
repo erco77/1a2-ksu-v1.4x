@@ -12,16 +12,8 @@
 
 // TODO:
 //
-//     * (WIP) Move data bit parsing from int handler to main()
-//
-//     * Check iteration loop speed to make sure it's what it used to be.
-//       Try flashing the L1 lamps each iter, and check on scope.
-//
-//     * Buzzers with TIP125 arrangement seems best run at 120Hz
-//       instead of 60 -- 60 sounds too "old and slow".
-//
-//     * Should investigate if push/pull drivers can replace the TIP125's
-//       so that buzzers see full throw +12/GND instead of +12/open.
+//     * Check iteration loop speed to make sure it's what it used to be. Try
+//       toggling L1 lamp each iter, and check HZ matches ITERS_PER_SEC on scope.
 //
 //               #            #
 //     #    #   ##            #    #
@@ -31,7 +23,7 @@
 //      #  #     #      ##         #
 //       ##    #####    ##         #
 //
-
+//
 // NOTE: For V1.4 to work with REV-J3 and older, you must: CUT THE TRACE FROM CPU2's RA5:
 //
 //          :
@@ -114,6 +106,7 @@
  *     * Bell System's "Interrupter" concept used for synced ring/lamps
  *     * Changed BUZZ_60Hz from software generated to hardware (PWM/CCP/PPS)
  *       (allows bidir send/recv of 8data reliably over SYNC_ILINK)
+ *     * SECONDARY board's status LED now controlled by PRIMARY over interlink
  *
  * For details on V1.4 mods, see:
  *
@@ -155,7 +148,7 @@
 #define RING_GEN_POW   LATAbits.LATA2               // hi supplies +12V to ring generator
 #define L1_LAMP        LATAbits.LATA0               // hi turns on L1's lamp on all extensions
 #define L2_LAMP        LATBbits.LATB5               // hi turns on L2's lamp on all extensions
-#define CPU_STATUS_LED LATCbits.LATC7               // hi turns on CPU STATUS led
+#define CPU_STATUS_LED LATCbits.LATC7               // hi turns on CPU STATUS LED
 #define BUZZ_RING      LATCbits.LATC1               // hi/lo output to buzz phones during incoming calls
 
 // In/Out
@@ -242,7 +235,8 @@
 #define TIMER1_FREQ      31250      // timer1 counts per second
 #define TIMER1_ITER_WAIT (TIMER1_FREQ/ITERS_PER_SEC)
                                     // What Timer1 counts up to every iteration
-
+#define DATA_WATCHDOG_MAX (ITERS_PER_SEC * 2)
+                                    // no data received after 2 secs? something's amiss
 // GLOBALS
 const int  G_msecs_per_iter = (1000/ITERS_PER_SEC);  // #msecs per iter (if ITERS_PER_SEC=125, this is 8. If 250, 4)
 TimerMsecs    L1_hold_tmr;             // timer for L1 hold sense
@@ -259,6 +253,7 @@ Interrupter G_int;
 TimerMsecs  L1_ringing_tmr;            // 6sec ring timer reset by each CO ring. Keeps lamps flashing,
 TimerMsecs  L2_ringing_tmr;            // 6sec ring timer reset by each CO ring. Keeps lamps flashing,
 
+uint        G_data_watchdog   = 0;     // counts up when data not recvd, zeroed whenever data received
 uchar       G_buzz_signal     = 0;     // 1 indicates isr() should toggle buzzer
 int         G_curr_line       = 0;     // "current line" being worked on (1 or 2). Used by HandleLine() and hardware funcs
 uchar       G_porta, G_portb, G_portc; // 8 bit input sample buffers, once per main loop iter
@@ -269,17 +264,15 @@ uint        G_iter            = 1;     // iteration counter (1-250)
 //     IOC (Interrupt On Change) is used to receive bits, and TMR2 times
 //     how long between state changes to determine 1 or 0.
 //
-//     The first bits sent are 1 followed by 0 to tell the receiver how long
-//     to expect 1 and 0 to be.
-//
 //     Data bits are sent every few main loop iterations to update the
 //     various variables managing the remote's state.
 //
-//     The PRIMARY sends the interrupter state for ring bell, ring flash, hold flash.
-//     The SECONDARY sends a bit indicating if the interrupter should be on or not
-//     (due to a call on hold or actively ringing lines). This is basically the MOTOR
-//     signal in old bell system KSUs that was enabled whenever any line card wanted
-//     the interrupter to be generating ringing or lamp flashing.
+//     The first bits sent are 1 followed by 0 to tell the receiver how long
+//     to expect 1 and 0 to be for the data bits that follow.
+//
+//     The PRIMARY sends the interrupter state bits for ring relay, ring flash, hold flash.
+//     The SECONDARY replies with two bits indicating if any lines it manages have incoming
+//     calls, or calls on hold, indicating the PRIMARY should have its interrupter running.
 //
 //     The user programs actual ringing across boards using the L1+L2 BELL
 //     terminal block, which may or may not be necessary in future revisions
@@ -290,7 +283,7 @@ uint        G_iter            = 1;     // iteration counter (1-250)
 
 #define TIME_1BIT    G_data_times[0]     // tmr0 data pulse width count for a 1 bit
 #define TIME_0BIT    G_data_times[1]     // tmr0 data pulse width count for a 0 bit
-#define XMIT_BITS    5                   // number of bits PRIMARY/SECONDARY sends to each other (<=8!)
+#define XMIT_BITS    6                   // number of bits PRIMARY/SECONDARY sends to each other (<=8!)
 
 volatile uchar G_data_index = 0;         // data array index
 volatile uchar G_data_times[8];          // TMR0 counts for each data bit (indexed by G_data_index)
@@ -407,17 +400,19 @@ void Send() {
     if ( IS_PRIMARY ) {
         // PRIMARY -> SECONDARY                                                     _
         SendBit(1);                           // 0. start bit (1)                    |
-        SendBit(0);                           // 1. start bit (0)                    |__ XMIT_BITS = 5 total
-        SendBit(G_int.ring_relay ? 1 : 0);    // 2. is interrupter ringing?          |
+        SendBit(0);                           // 1. start bit (0)                    |
+        SendBit(G_int.ring_relay ? 1 : 0);    // 2. is interrupter ringing?          |__ XMIT_BITS = 6 total
         SendBit(G_int.ring_flash ? 1 : 0);    // 3. is interrupter ring flash high?  |
-        SendBit(G_int.hold_flash ? 1 : 0);    // 4. is interrupter hold flash high? _|
+        SendBit(G_int.hold_flash ? 1 : 0);    // 4. is interrupter hold flash high?  |
+        SendBit(CPU_STATUS_LED   ? 1 : 0);    // 5. is cpu status LED on?           _|
     } else {
         // SECONDARY -> PRIMARY                                                     _
         SendBit(1);                            // 0. start bit (1)                   |
-        SendBit(0);                            // 1. start bit (0)                   |__ XMIT_BITS = 5 total
-        SendBit(IsAnyLineRinging() ? 1 : 0);   // 2. any local lines ringing         |
+        SendBit(0);                            // 1. start bit (0)                   |
+        SendBit(IsAnyLineRinging() ? 1 : 0);   // 2. any local lines ringing         |__ XMIT_BITS = 6 total
         SendBit(IsAnyLineHold()    ? 1 : 0);   // 3. any local lines on hold         |
-        SendBit(0);                            // 4. unused                         _|
+        SendBit(0);                            // 4. unused                          |
+        SendBit(0);                            // 5. unused                         _|
     }
 }
 
@@ -430,12 +425,13 @@ void Send() {
 void HandleRecv() {
     if ( G_data_index != XMIT_BITS ) return;    // no complete data yet
     if ( IS_SECONDARY ) {
-        // Receive data from PRIMARY
+        // SECONDARY: Receive data from PRIMARY
         G_int.ring_relay = ZeroOrOne(G_data_times[2]);
         G_int.ring_flash = ZeroOrOne(G_data_times[3]);
         G_int.hold_flash = ZeroOrOne(G_data_times[4]);
+        CPU_STATUS_LED   = ZeroOrOne(G_data_times[5]);
     } else {
-        // Receive data from SECONDARY
+        // PRIMARY: Receive data reply from SECONDARY
         G_remote_line_ring = ZeroOrOne(G_data_times[2]);
         G_remote_line_hold = ZeroOrOne(G_data_times[3]);
     }
@@ -829,10 +825,28 @@ inline uint GetTimer1() {
     return (hi << 8) | lo;
 }
 
-// Flash the CPU STATUS led once per second
+// Flash the CPU STATUS LED once per second
 inline void FlashCpuStatusLED() {
-    int count      = G_timer1_cnt % TIMER1_FREQ;
-    CPU_STATUS_LED = (count <= 15625) ? 1 : 0;
+    int count = G_timer1_cnt % TIMER1_FREQ;
+    if ( IS_PRIMARY ) {
+        // PRIMARY: flash status LED directly
+        CPU_STATUS_LED = (count <= 15625) ? 1 : 0;
+    } else {
+        // SECONDARY: status LED flashes based on data from PRIMARY, so we do
+        //     nothing here when that's working. But, if no data received within
+        //     2 secs, then G_data_watchdog will count up to DATA_WATCHDOG_MAX
+        //     indicating something's wrong with interlink (no cable?); so let's
+        //     keep status LED blinking but with a flicker it to indicate a problem.
+        //
+        if ( G_data_watchdog >= DATA_WATCHDOG_MAX ) {
+            CPU_STATUS_LED = ((count <= 15625) && (G_iter & 8)) ? 1 : 0; // "& 8" flickers LED
+        } else {
+            // Do nothing here:
+            //    LED flash is controlled by msgs from PRIMARY.
+            //
+        }
+        return;
+    }
 }
 
 // Change the hardware state of current line's HOLD_RLY
@@ -1233,6 +1247,17 @@ void HandleInterrupter() {
 void PrintDebugData() {
     char s[40];
     char *p = s;
+    *p++ = 'D';
+    *p++ = '=';
+    p = SCOPETEXT_AsHex((G_data_watchdog >> 8)& 0xff, p);
+    p = SCOPETEXT_AsHex((G_data_watchdog     )& 0xff, p);
+    *p++ = ',';
+    p = SCOPETEXT_AsHex(sizeof(G_data_watchdog), p);
+    SCOPETEXT_Print(s);
+
+    /**
+    char s[40];
+    char *p = s;
     *p++ = '0';
     *p++ = '=';
     p = SCOPETEXT_AsHex(TIME_0BIT, p);
@@ -1241,6 +1266,7 @@ void PrintDebugData() {
     *p++ = '=';
     p = SCOPETEXT_AsHex(TIME_1BIT, p);
     SCOPETEXT_Print(s);
+     **/
 }
 #endif // SCOPETEXT_H
 
@@ -1372,6 +1398,7 @@ void main(void) {
         //
         if ( G_data_received ) {
             G_data_received = 0;      // 'acknowledge' receipt
+            G_data_watchdog = 0;      // reset data watchdog
             if ( IS_SECONDARY ) {     // Secondary turns around with reply
                 HandleRecv();         // we have to handle what we recvd here or we'll loose it
                 DataXmitMode();       // switch to xmit mode
@@ -1382,10 +1409,20 @@ void main(void) {
                 // PRIMARY? Remain in recv mode until our next xmit
                 HandleRecv();
             }
+        } else {
+            // No data received?
+            //    Advance data watchdog timer until max reached.
+            //    This flags the cpu status LED should flicker-flash, indicating
+            //    something's wrong with the interlink.
+            //
+            if ( G_data_watchdog < DATA_WATCHDOG_MAX ) {
+                ++G_data_watchdog;     // advance watchdog timer until max reached
+            }
         }
 
 #ifdef SCOPETEXT_H
-        if ( G_iter == 1 ) PrintDebugData();           // ERCODEBUG
+        //OLD if ( G_iter == 1 ) PrintDebugData();           // ERCODEBUG
+        PrintDebugData();
 #endif //SCOPETEXT_H
 
         // LOOP DELAY: Wait on hardware timer for iteration delay
