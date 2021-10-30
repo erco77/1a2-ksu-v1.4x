@@ -149,32 +149,8 @@
         ring generator's output to the 1A2 extensions through a diode matrix (D12 thru
         D19) and the extension ring programming switches at SW2, described in more detail
         in section x.x.
-        
 
-                                               RING DETECT CIRCUIT
-                                               ===================
-
-                  +----------------------------------------------------------------------+
-                  |                                                                      |
-                  |                          ________________________         ______     |
-                  |    _____                |                        |       |      |    |
-        Tip ------o---|_____|---o-----------|---o----             ___|_______| PIC  |    |         __________________
-                        R5      |           |   |    |           /   |       | CPU1 |    |        |         _______  |
-                      33K/1W    |           |   |   _|_  ---   |/    |       |      |    |   T    |   /    |       | |
-                               | | R6       |  \-/  /_\  ---   |     |       |      |    +---o----|--o  o--| VOICE | |
-                               | |          |  _V_   |   ---   |\    |       |      |       (26)  |        | HYBRID| |
-                               |_| 1K/1W    |   |    |           \___|___    |      |             |        |_______| |
-                                |           |   |    |               |   |   |      |        R    |             |    |
-                        | |     |           |   |    |               |   |   |      |    +---o----|-------------+    |
-        Ring -----o-----| |-----o-----------|---o----o               |  GND  |      |    |  (1)   |                  |
-                  |     | |                 |                        |       |      |    |        |__________________|
-                  |     C1                  |________________________|       |______|    |              1A2 PHONE
-                  |                                     IC1                    IC8       |
-                  |    0.47uF                       OPTOCOUPLER                          |
-                  |    200VA                          LDA-110                            |
-                  |                                                                      |
-                  +----------------------------------------------------------------------+
-
+        <IMG SRC="images/1a2-manual--ring-detect-circuit.png">
 
         In the above, the combination of R5 and C1 block DC and high voice frequencies,
         only passing the relatively low frequency AC ringing. R6 desensitizes the optocoupler
@@ -207,29 +183,7 @@
         CPU1 uses this signal to manage the extension lamps and the hold condition
         for the line.
 
-                                       LINE DETECT CIRCUIT
-                                       ===================                                                __________________
-                                                                                                         |         _______  |
-                                                                                                 T       |   /    |       | |
-        Tip ------------------------------------------------------------------o------------------o-------|--o  o--| VOICE | |
-                                                                              |                 (26)     |        | HYBRID| |
-                             _______________________         ________         |                          |        |_______| |
-                            |                       |       |        |        |                  R       |             |    |
-        Ring ---------o-----|---o----            ___|_______|  PIC   |        |           +------o-------|-------------+    |
-                      |     |   |    |          /   |       |  CPU1  |       | | R1       |     (1)      |                  |
-                      |     |   |   _|_  ---  |/    |       |        |       | | 160/1W   |              |__________________|
-                  R7 | |    |  \ /  /_\  ---  |     |       |        |       | |          |   AMPHENOL        1A2 PHONE
-               1K/1W | |    |  _V_   |   ---  |\    |       |        |        |           |   CONNECTOR
-                     | |    |   |    |          \___|___    |        |        |           |
-                      |     |   |    |              |   |   |        |        |           |
-                      |     |   |    |              |   |   |        |        |           |
-                      o-----|---o----o              |  GND  |        |       \|/          |
-                      |     |_______________________|       |________|        X   K1      |
-                      |                 IC1                     IC8          /|\          |
-                      |               LDA-110                                 |           |
-                      |             OPTOCOUPLER                               |           |
-                      |_______________________________________________________|___________|
-
+        <IMG SRC="images/1a2-manual--line-detect-circuit.png">
 
          In this circuit, the Line Detect optocoupler is connected in series with the phone line
          to detect current flow through the voice hybrid and/or Hold resistor.
