@@ -1,0 +1,305 @@
+<PRE>
+Seriss 1A2 Single Board KSU - Board Revisions
+(Revisions shown newest first, oldest last)
+--------------------------------------------------------------------------------
+"REV J4"
+
+  * To support the new V1.4 firmware, the trace from CPU2 pin #2 was dropped.
+     (This still allows V1.3x firmware to be used too, but V1.4 is better)
+
+  * Small silk screen fixes; "LINE RINGING" section label was overlapping the
+    component id for K3.
+
+  * Mounting holes were adjusted to a standard 300x300 mil spacing from edges.
+    (When "Velcro Slots" were added in REV-J3, the mounting holes were adjusted
+    without concern for consistent edge clearance)
+
+  * Firmware V1.4 is now supported.
+
+    V1.4 introduces synchronized ringing cross two boards. This allows calls
+    on Line #1 through #4 to ring in sync, regardless of how out-of-sync the
+    CO ring cadence is. The old Bell System "Interrupter" concept is implemented
+    by CPU1 on the PRIMARY acting as master for both board's ring and lamp flashing.
+    Bidirectional data transmission over SYNC_ILINK keeps the boards sync'ed.
+
+    For the new bidirectional data transmission to work, V1.4 firmware on CPU1
+    makes its first use of the SECONDARY_DET signal (to detect which interlinked
+    board is the master in the transmissions). For this signal to operate properly,
+    the trace from CPU2 pin 2 (of older boards) was dropped on the J4 boards.
+    This is because when CPU2 was powered down (ICM hung up), it dragged the signal
+    to ground, preventing CPU1 from detecting the signal. 
+
+    NOTE: To use V1.4 firmware on REV-J3 (and older) boards, one must CUT THE TRACE
+          from CPU2 pin #2, e.g.
+
+
+                                     *** REV-J3 BOARD ***
+
+                            :
+                            |   CPU 2
+                            |  +5V     RA5     RA4     RA3
+                            |_______________________________ _ _
+                              | 1 |   | 2 | # | 3 |   | 4 |
+                              |___|   |___| # |___|   |___|
+                                        #   #
+                                        #   #
+                      diagonal          #   #  <-- DONT CUT this nearby trace!
+                      trace cut --> \\ #    #
+                        here         \\     #
+                                     #\\    #
+                                    #  \\   #
+                          via --> (O)       #
+                                            #
+
+
+    When this is done, J3 and older boards can then support BOTH V1.3x /AND/ V1.4x
+    firmware.
+
+    In V1.4, the buzzer signal is now generated in hardware by the PIC's
+    PWM/CCP/TMR2, rather than via software interrupts. This frees up the CPU
+    for handling the bidirectional data.
+
+
+    V1.4 uses these PIC features:
+
+	o TMR0 - Timer 0: times SYNC_ILINK data pulses
+	o TMR1 - Timer 1: timing for main loop's ITERS_PER_SEC
+	o TMR2 - Timer 2: PWM1/CCP1 use this for the BUZZ_60HZ signal
+	o PPS  - Peripheral Pin Select - assigns PWM to the buzzer pin, then TRIS for off condition
+	o CCP  - Capture/Compare/PWM
+	o PWM  - Pulse Width Modulation
+	o IOC  - Interrupt On Change (edge transitions) for reading bidir data
+
+
+"REV J3"
+  * Velcro slots added to allow securing the amphenols to the board.
+  * The addition of the Velcro slots changed the overall board dimensions,
+    mounting hole positions, and caused the entire 1A2 bus to be rerouted.
+  * The board's width was decreased by about 1/4" by optimizing component
+    positions and traces. (Smaller board widths simplify shipping)
+  * Seriss logo graphic and product URL was added.
+  * Electrically, no changes were made.
+
+"REV J2"
+  * "EXTRA" position (C9) had extra pads added to accomodate large components.
+    For single board installations, this position is populated with a power resistor.
+  * Small silk screen changes were made for second source part#s.
+  * Electrically, no changes were made.
+
+"REV J1" (Jan 2020) Differs from "REV J" in the following ways:
+  * Modification for Northern Telecom LOGIC 10; swapped buzzer leads [1]
+  * Brought EXT 1-4 connectors closer by a small bit so phones w/3 amphenols
+    don't stretch when all connected
+  * Small trace mods, no electrical changes (other than LOGIC 10 mod above)
+  * Enlarged many solder pads to aid in soldering (chips, discrete components..)
+  * Enlarged clearance for ground trace away from amphenol signal bus and JP3 T1 via
+  * Small trace changes to remove some unnecessary vias
+  * ULN2803 (IC12) and 10K RNET (RN2) lowered to clear for "BUZZERS"
+    label and to remove an unnecessary via
+  * Simplified trace runs around "12V INPUT"
+  * Dropped 3rd pad hole on left of R28, will never be needed.
+  * Labeling changes:
+      - Added "CPU1" and "CPU2" labels to PIC chips.
+      - Added part# for 220 ohm resistors
+      - Flopped "POWERDSINE RING GEN" label for JP5 to match others
+      - Many section labels enlarged
+      - Removed "A" and "B" labeling on PRIMARY/SECONDARY connectors
+        because they weren't being used.
+
+  [1] This change prevents board from immediately shorting out when a LOGIC 10
+      is trivially plugged in without wiring reassignments. Flopping buzzer
+      polarity so ground is on 17 instead of 42 to solve. LOGIC 10 makes odd use
+      of Y-O pair as a path to A lead ground.
+
+  The revision J1 boards were printed by PCBWAY in matte black.
+
+"REV J" (Dec 2019) Differs from "REV H2" in the following ways:
+  * Polarity swapped for A lead circuits to support Nothern Telecom LOGIC6 and LOGIC10
+  * Fixed missing ground for L4 ground on EXT2 (this was in H1 and H2, fixed in H3)
+  * Increase clearance of JP4's "SEC" trace across board to be away from TO220 screws
+  * Increases size of annular rings -- printers had trouble with the solder mask
+  * Enlarged layout for capacitors slightly
+  * Increased DRC (Design Rule Check):
+    * Copper 5.9mil -> 7.0mil
+    * Annular ring min: 5.0mil -> 7.0mil
+  The revision J boards were printed by PCBWAY in matte black.
+
+"REV H2" (Nov 2019) Differs from "REV H1" in the following ways:
+  * Fixed badly positioned via at end of EXT1's T1 trace, off by a full grid unit.
+  * Removed part#s for non-existant JP1/2 at far right of board
+  * Moved JP3 part# from board edge to the component's location
+  * Removed redundant part# for JP3/4 at far right of board; components have this info already.
+  * Removed dated PCB: and SCH: filenames from right side of board: never bothered to update them!
+  * Enforce DRC (Design Rule Check):
+
+    Minimum Distance (mil)
+        (x) Copper: 5.9
+        (x) Drillings: 19.7
+    Min/Max: (mil)
+        (x) Drilling Min/Max: 11.8/315.0
+        (x) Track Min: 6.0
+        (x) Annular Ring Min: 5.0
+        (x) Silkscreen Min: 5.0
+    Miscellaneous: <i>(these are all unchecked)</i>
+        ( ) Silkscreen over pads
+        ( ) Drilling on SMD pads
+        ( ) Pads without soldermask
+        ( ) Soldermask out of pads
+
+  The REV-H2 boards were printed by WellPCB in matte black.
+
+"REV H1" (Oct 2019) Differs from "REV H" in the following ways:
+
+    * Extra holes for 160 OHM HOLD RESISTOR (R1+R8)
+      Copied one of the RING DETECT resistors, which checked + worked.
+
+    * Changed Digikey part# for 33K 1/2W to be 1W component
+
+    * Changed Digikey part# for 0.1uF caps to be bulk (instead of cut tape)
+
+    * Changed 0.1uF caps' footprints to be smaller, so leads can be
+      folded onto the component (instead of needing to leave 1/4" leads)
+
+    * Changed holes for TIP125 and Amphenols to be plated through holes
+      (like the TIP32's) to prevent PCB printing delays (happened on last order).
+
+    * Fixed small horiz alignment problem with EXT1
+
+    * Added pin1 "dot" to all IC sockets
+
+    * Standardized IC sockets pad/holes to 56mil/29mil (some were 55.x)
+
+    * Removed D4-D11 (replaced with IC13, see below)
+
+    * Added IC13: converted 8 1n914 BUZZ CALL diode arrangement (D4-D11)
+      to a single 20 PIN IC socket for the 10 LED BARGRAPH. This to make
+      it easy to simply insert the bargraph component into the board
+      without having to cut off the lower 2 rows of pins. Doing this
+      necessitated rerouting some of the other traces to make room for
+      the 2 new rows of pads for the unused LEDs. And populating this position
+      on the board has ALWAYS been done with the LED bargraph, not 8 discrete
+      1n914s (which also works, but harder to solder)
+
+    * Updated all part#s in component comments to part#s that are for "bulk" parts
+      (instead of cut tape)
+
+    --- REV-H1:
+    #   o Extra holes for HOLD RESISTOR
+    #     Basicalled moved one of the RING DETECT resistors up.
+    #
+    #   o Changed digikey part# for 60 / 1W res from cut-tape to bulk
+    #     RSF1JT62R0CT-ND -> 62W-1-ND
+    #         \                  \
+    #          \__ cut tape       \__ bulk
+    #              (old)              (new)
+    #
+    #   o Changed digikey part# for 1K / 0.25W res from cut-tape to bulk
+    #     CF14JT1K00CT-ND -> 1.0KQBK-ND 
+    #         \                  \
+    #          \__ cut tape       \__ bulk
+    #              (old)              (new)
+    #
+    #   o Changed digikey part# for 1K / 1W res from cut-tape to bulk
+    #     RSF1JT1K00CT-ND -> 1.0KW-1-ND
+    #         \                  \
+    #          \__ cut tape       \__ bulk
+    #              (old)              (new)
+    #
+    #   o Changed digikey part# for 10K / .25W res from cut-tape to bulk
+    #     CF14JT10K0CT-ND -> 10KQBK-ND
+    #         \                  \
+    #          \__ cut tape       \__ bulk
+    #              (old)              (new)
+    #     
+    #   o Changed digikey part# for 100K / .25W res from cut-tape to bulk
+    #     CF14JT100KCT-ND  -> 100KQBK-ND
+    #         \                 \
+    #          \__ cut tape      \__ bulk
+    #              (old)             (new)
+    #
+    #   o Changed digikey part# for 33K to be 1W component 33KWCT-ND -> 33KW-1-ND
+    #     These are the same size as the 1K/1W's.
+    #
+    #   o Changed digikey part# for 70K / .25W res from blue 5-ring to brown 4-ring
+    #     69.8KXBK-ND   ->  68KQBK-ND
+    #         \                 \
+    #          \__ blue/5ring    \__ brown/4ring
+    #              (old)             (new)
+    #
+    #   o Changed digikey part# for 150K / .25W res from cut-tape to bulk
+    #      CF14JT150KCT-ND -> 150KQBK-ND
+    #         \                 \
+    #          \__ cut tape      \__ bulk
+    #              (old)             (new)
+    #
+    #   o Changed digikey part# for 0.1uF caps to be bulk (instead of cut tape)
+    #     399-4454-1-ND -> 399-9843-ND
+    #         \                 \
+    #          \__ cut tape      \__ bulk
+    #              (old)             (new)
+    #
+    #   o Changed footprint for all 0.1uF caps to be smaller, so leads can be
+    #     folded onto the component, instead of leaving extra little 1/4" leads
+    #
+    #   o Changed holes for TIP125 + Amphenol's to be plated through holes (like the TIP32's)
+    #     to prevent PCB printing delays that happened on last order.
+    #
+    #   o Added part# label to fourh 1n4148 diodes
+
+
+"REV H" (Sep 2019) Differs from "REV G1" in the following ways:
+    * New input SECONDARY_DET on Cpu1/RC3 (currently unused)
+    * New input SECONDARY_DET on Cpu2/RA5 (currently unused)
+    * New onboard fuse
+    * Removed JP1 and JP2 "PIC PROG" connectors, obsolete
+    * Trace clearances increased around some interlink pads
+    * Small printing error:
+      In board run "WELLPCB_REV-H-printed-09-16-2019", bottom silk revision marker
+      said "G1" instead of "H". Fixed lay6 file + gerbers for next board run,
+      (but left WELLPCB directory unchanged)
+
+"REV G1" (Jul 2019) Differs from "REV G" in the following ways:
+    * No impact on software at all
+    * Added TIP125 surge suppression diodes D22-D25
+    * Change surface mount resistors to through hole (SMT annoying to solder)
+    * Repositioned R25, R26, and R28 (changed to R27) for easier soldering/lead trimming
+    * Swapped component numbers for R28 <-> R27: regional sequential numbering
+    * Moved C7 next to C5 + C6 for easier assembly
+    * Moved JP5 to left of EXT1 for cable clearence
+    * Increased INTERLINK connector pad size for *solder side only* (more surface area for soldering)
+    * Increased overall pad size for JP3 & 4 (more surface area for soldering)
+    * Slight enlarge of LED holes to allow red status leds to flush mount
+    * Added extra pad holes for 60/1W and 300/1W resistors
+    These boards were printed by PCBWay in Matte Black.
+
+"REV G" (Jun 2019) Differs from "REV F" in the following ways:
+    * REV G added 'SYNC' I/O signal to allow two boards to keep their
+      flashing signals in sync (Hold + Ring Flash). Mostly an INPUT,
+      briefly switches to output to send short sync signal to "other" cpu.
+      This ensures "slower" cpu autosyncs itself to "faster" one.
+      See UpdateInterlinkSync() function for complete implementation.
+    * LED through holes enlarged slightly allowing red CPU LEDs to flush mount
+    * Some traces moved around for clearance issues, but no electrical changes
+    These boards were printed by WellPCB in Matte Black.
+
+"REV F" and "REV F1" (May 2019) Introduced interlink feature, two cpus.
+    Differs from "REV E" in the following ways:
+    * Revision "F" was an internal "development only" board; "F1" is the release version.
+    * Introduiced Interlink feature to support combining two boards for 4 lines/8 extensions
+    * Introduced rotary dial support for extension dialing.
+    * Now has two PIC chips; CPU1 and CPU2, each with separate firmware
+    * CPU1 handles logic same as REV E's single CPU, but no longer handles MT8870 signals
+    * CPU2 handles MT8870 signals and rotary dialing
+    * HandleDTMF() function removed from CPU1 firmware, moved to CPU2
+    * Dropped these components:
+           * "REV E" JP2 removed  -- interlink handles this now
+           * "REV E" C4 removed   -- 2200uF filter capacitor (voice batt) was unused
+           * "REV E" 7445 removed -- made obsolete by use of PIC CPU2
+    These boards were printed by PCBWay in purple.
+
+"REV E" (Apr 2019) First version of board with PIC chip to handle logic, which reduced
+    the parts count by 50 components from the previous REV-B.
+    * Previous board used no CPUs, all analog/discrete circuitry.
+    * This board included 8 buzzer transistors and no interlink feature.
+    * This board is the first to use Sprint6 PCB software, lowering print cost for 3 boards from $380 to $60.
+    These boards were printed by PCBWay in blue.
