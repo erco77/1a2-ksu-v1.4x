@@ -1,207 +1,237 @@
 <!DOCTYPE html><!--
 # vim: autoindent tabstop=8 shiftwidth=4 expandtab softtabstop=4 filetype=python syntax=off
 -->
-<HTML><HEAD><meta charset="UTF-8"></HEAD>
-<PRE>
+<HTML><HEAD>
+    <META CHARSET="UTF-8">
+    <STYLE>
+        @font-face {
+          /*** Great typewriter font - has complete ASCII char set, and free for commercial use.
+               There is also a much larger .woff2 which has UTF8 if need be (which we don't need;
+               this document is pure ASCII text) - erco@seriss.com
+           ***/
+          font-family: 'typewriter';
+          src: url('fonts/TT2020StyleE-Regular.woff2') format('woff2');
+        }
+    </STYLE>
+</HEAD>
+<BODY>
+<PRE style='font-family:typewriter; font-size:1.0em;'>
 
-                ==========================================================
-                1A2 KSU BOARD - REV-J4 - 2 LINE / 4 EXTENSIONS / INTERLINK
-                ==========================================================
-                erco@seriss.com - REV-J4 - Sep 30 2021
+                                                                                    Date: Sep 30 2021
+                                                                                     Revision: REV-J4
+                                                                                             Issue: 1
+                                                                                      erco@seriss.com
 
-                <I><B>If you find problems in this document, contact: erco@seriss.com</B></I>
+
+                <B><U>1A2 KSU BOARD - REV-J4 - 2 LINE / 4 EXTENSIONS / INTERLINK</U></B>
+
+                <I>If you find problems in this document, contact: erco@seriss.com</I>
 
 
 1.0 - 1A2 Board and Features Overview
-=====================================
+-------------------------------------
+    This is a single board KSU (Key System Unit) supporting two CO (Central Office)
+    telco lines, and up to 4 separate 1A2 phone extensions. The KSU provides these
+    common 1A2 features:
 
-    This is a single board KSU (Key System Unit) supporting two CO (Central Office) lines,
-    and up to 4 separate 1A2 phones, providing these common 1A2 features:
+        * Hold for both lines, all 4 extensions
 
-        > Hold feature for both lines, all four extensions
+        * Lamp indicators:
+             - Blinks for incoming calls (1Hz)
+             - On steady when in use
+             - Winks when on Hold (2Hz / 80% Duty)
+             - Off when line is idle
 
-        > Lamps: - Blinks for incoming calls
-                 - On steady when in use
-                 - Winks when on hold
-                 - Off when line is idle
+        * Programmable ringing for incoming calls, bells and buzzers.
+          An external ring generator is required for bells to operate under KSU control.
 
-        > Programmable Bell ringing option for incoming calls
-          (An external ring generator must be supplied for bell ringing)
+        * Intercom feature hardwired to Line 5 with Touch-Tone or Rotary dialing supported
 
-        > Programmable Buzzer ringing option for incoming calls
-          (Can be used instead of bell ringing, e.g. if no ring generator is present)
+        * 2 KSU boards can be interlinked for a total of 4 lines / 8 Extensions
 
-        > Intercom on Line 5, with extension buzzing via Touch-Tone or Rotary dialing
+        * In a power outage, phones can still be used to dial out
 
-        > 2 boards can be linked with a 30 pin ribbon cable for 4 lines / 8 Extensions
+        * Handles Disconnect Supervision (aka CPC, or Calling Party Control) signaling
+          if provided by CO
 
-        > In a power outage, phones can still be used to dial out
+    The intercom on Line #5 allows local intercommunication between the KSU extensions
+    by dialing the extension number (1 thru 4) on either a Rotary or Touch-Tone dial
+    to buzz any of the 4 extensions.  This triggers the buzzer at that extension notifying
+    anyone nearby to pickup the intercom line. Dialing "0" buzzes all 4 extensions.
 
-        > Handles remote hangups during hold (CPC/Disconnect Supervision signaling from CO)
-
-    The intercom line allows a caller to buzz any of the 4 extensions by dialing the
-    extension number on either a Rotary or Touch-Tone dial pad.  This signals the
-    person at that extension to pick up the intercom to talk to the caller.
-    Dialing "0" buzzes <I>all</I> extensions.
-
-    This system is expandable: with two boards interlinked with a 30 pin ribbon cable, a
-    total of 4 CO lines and 8 extensions can be supported.  Intercom is also expanded so
-    that one can dial 1 through 8 to buzz any of the 8 extensions, and "0" to buzz all 8.
+    The system is expandable: 2 boards can be interlinked with a 30 pin ribbon cable,
+    supporting a total of 4 lines and 8 extensions.  Intercom is expanded as well, so
+    dialing digits "1" through "8" buzzes the respective extension, and "0" buzzes them all.
 
 
 2.0 - General Board Layout
-==========================
+--------------------------
+    The board has discrete component sections for modularity:
 
-    The board is broken out into discrete sections so each can be separately populated
-    and debugged easily.
+        2.1 - Line Sections
+        -------------------
 
-    The sections are:
-
-        Line Circuit
-        ------------
-
-            "LINE 1"    - Handles line 1's line and ring detect, Hold function
-            "LINE 2"    - Handles line 2's line and ring detect, Hold function
-            "CPU LOGIC" - The CPU handling line functions (interrupter, lamps, ringing..)
+            * "LINE 1"    - Handles Line #1's Line Detect and Ring Detect, Hold function
+            * "LINE 2"    - Handles Line #2's Line Detect and Ring Detect, Hold function
+            * "CPU LOGIC" - The CPU handling line functions (interrupter, lamps, ringing..)
+                            and detection of the A lead for Line #1 (A1) and Line #2 (A2)
                 
-        Intercom Circuit
-        ----------------
+        2.2 - Intercom Sections
+        -----------------------
 
-            "INTERCOM DIALING" - Handles detecting dialing on the intercom (Line #5)
-            "ICM VOICE BATT"   - Provides voice battery for the intercom (Line #5)
+            * "INTERCOM DIALING" - Handles detecting dialing on Intercom Line #5
+            * "ICM VOICE BATT"   - Provides voice battery for Intercom Line #5
                 
-        Ringing / Buzzing
-        -----------------
+        2.3 - Ringing / Buzzing Sections
+        --------------------------------
 
-            "BUZZERS"        - Components that drive the buzzers
-            "LINE RINGING"   - Handles line ringing control
-            "BUZZ CALL"      - Handles programming incoming calls to buzz
-            "BELL CALL"      - Handles programming incoming calls to ring bells
-            "RING GENERATOR" - The ring generator input connectors
+            * "BUZZERS"        - Components that drive the buzzers
+            * "LINE RINGING"   - Handles Line #1 and #2 ringing control xstr and relays
+            * "BUZZ CALL"      - Handles programming incoming calls to buzz
+            * "BELL CALL"      - Handles programming incoming calls to ring bells
+            * "RING GENERATOR" - The ring generator input connectors
 
-         Miscellaneous
-         -------------
+         2.4 - Miscellaneous
+         ---------------------
 
-            "EXT 1-4"   - The amphenol connectors for the phone extensions
-            "INTERLINK" - The interlink jumpers JP3 and JP4, and interlink ribbon connector
+            * "EXT 1-4"   - The amphenol connectors for the phone extensions
+            * "INTERLINK" - The interlink jumpers JP3 and JP4, and interlink ribbon connector
 
 
     These sections in quick detail:
 
-        > The LINE 1 and LINE 2 sections interact with the CO telephone lines directly;
-          Ring Detect using resistors R6, R6 and capacitor C1 and optocoupler IC1,
-          Line Detect using resistor R7. The Hold circuit uses relay K1 and the
-          hold resistor R1. The line's Lamp driver involves ULN2803 (IC7), 
-          resistors R2 and R4, and power FET transistor Q1 to directly drive the lamp.
 
-        > The CPU LOGIC section comprises of the CPU1 PIC chip which monitors
-          the state of line 1 and 2, controlling lamps, buzzers, and ringing.
-          A ULN2803 acts as an output amplifier/inverter. A 5.6K resistor
-          network is used for signal pull-ups and current limiting.
+    2.1 - Line Sections
+    -------------------
+        > The LINE 1 and LINE 2 sections are the same circuit for interacting
+	  with the CO telephone lines directly:
 
-        > The INTERCOM DIALING section uses a DTMF decoder (IC9) to handle decoding
-          intercom Touch-Tone dialing, and an optocoupler (IC11) that handles
-          intercom Rotary dialing. CPU2 handles parsing the dialed digits and
-          drives the buzzers for intercom dialing via ULN2803 (IC10) and 
-          current limit resistors (RN2) controlling power transistors Q7-Q10.
+              * Ring Detect using resistors R6, capacitor C1, and optocoupler IC1
 
-        > ICM VOICE BATT provides "voice battery" for the intercom voice path
-          over the Line #5 Tip/Ring pair using the two resistors R15 and R16.
+              * Line Detect using resistor R7 and optocoupler IC2.
 
-        > The BUZZERS section includes the PNP TIP125 power transistors that
-          directly drive the phone buzzers, a 10K resistor network that provides
-          current limiting for the power transistors inputs, and a ULN2803 which
-          provides open collector outputs to drive the power transistors together
-          with the BUZZ RING circuit.
+	      * The Hold circuit uses relay K1 and the Hold resistor R1. 
 
-        > LINE RINGING has a TIP32 power transistor to provide 12v during ringing
-          to power 12v ring generators, or to operate an external relay that switches
-          AC power on and off for an AC powered ring generator. There are also two
-          relays that turn on and off for each ring burst, managing the ring cadence
-          for buzzers and bells during incoming call ringing.
+              * The Line's lamps are driven by the IRF-9530 power transistor Q1
+                and transistion dampening resistors R2 and R4.
 
-        > BUZZ CALL and BELL CALL each have a diode matrix and DIP switches to provide
-          programming which extensions will ring or buzz during incoming calls on
-          Line #1 or Line #2.
+        > The CPU LOGIC section uses:
 
-        > RING GENERATOR has two input connectors JP5 and CN4 for externally provided ring
-          generators:
+              * CPU1 PIC chip (IC8) which monitors the state of Line #1 + #2, 
+                controlling lamps, buzzers, and ringing.
 
-              - JP5 provides connection of PowerDSINE 12volt ring generators,
+              * ULN2803 (IC7) which acts as an output amplifier/inverter.
+
+              * The 5.6K resistor network RN1 is used for signal pull-ups and current limiting.
+
+              * The A lead detecting optocouplers:
+
+                    - A1 (IC5) detects the A lead signal from the phone extensions for Line #1
+                    - A2 (IC6) detects the A lead signal from the phone extensions for Line #2
+
+
+    2.2 - Intercom Sections
+    -----------------------
+        > The INTERCOM DIALING section uses:
+
+              * A DTMF decoder (IC9) to handle decoding intercom Touch-Tone dialing
+
+              * An optocoupler (IC11) to handle intercom Rotary dialing
+
+              * CPU2 (IC10) which parses intercom dialed digits, and drives buzzers for
+                intercom dialing via the ULN2803 (IC10) signal amplifier, and current
+                limit resistors (RN2) for the base inputs to the TIP125 power transistors
+                Q7 - Q10.
+
+        > ICM VOICE BATT provides "voice battery" for Intercom Line #5 voice path
+          using 1 watt resistors R15 and R16.
+
+
+    2.3 - Ringing / Buzzing Sections
+    --------------------------------
+        > The BUZZERS section includes the TIP125 PNP bipolar power transistors that
+          directly drive the phone buzzers. When CPU2 wants to buzz a buzzer, it drives
+          a +5v 60Hz signal to the appropriate ULN2803 gate, whose open collector output
+          drives the base of the TIP125 power transistors through one of the 10K
+          current limiting resistors in resistor network RN2. The negative logic
+          60Hz output of the ULN2803 (IC12)'s open collector outputs is logically OR'ed
+          with the BUZZ RING circuit's negative logic 60Hz outputs to allow either
+          "INTERCOM DIALING" or "BUZZ RING" circuits to control the extension buzzers.
+
+        > LINE RINGING is comprised of:
+            
+            * A TIP32 power transistor controlled by CPU1 that provides 12v during
+              the ring cycle to power 12v ring generators, or can operate an external
+              relay to control an external AC powered ring generator.
+
+            * Two relays K3 and K4 for Line #1 and #2 respectively turn "on" for each
+              ring burst in the KSU generated cadence when an incoming call is detected.
+
+        > BUZZ CALL and BELL CALL each consist of:
+
+            * DIP switches to provide programming which extensions will ring or buzz
+              during incoming calls on Line #1 or Line #2.
+
+            * A Diode matrix to prevent back currents through the DIP switches
+
+        > RING GENERATOR contains two input connectors JP5 and CN4 for externally
+          provided ring generators:
+
+              - JP5 provides connection of PowerDSINE 12volt ring generators.
 
               - CN4 provides connection of all other ring generators such as the
                 Western Electric 118a, TelLabs 8101, etc.
 
-        > EXT 1-4 are the amphenol connectors for the 1A2 extensions.
+
+    2.4 - Miscellaneous
+    -------------------
+        > EXT 1-4 label the amphenol connectors to the 1A2 extensions.
 
         > The INTERLINK section allows two KSU boards to be combined to manage
-          4 lines and 8 extension phones.  The jumpers on JP3 and JP4 configure
-          if the board is a PRIMARY board (providing Line #1 and #2) or a SECONDARY
-          board (providing Line #3 and Line #4). The two boards are interconnected
-          with a 30 pin ribbon cable using connector CN9.
+          4 lines and 8 extension phones; one board must be configured as the PRIMARY,
+          the other as the SECONDARY. The headers of either JP3 or JP4 must be jumpered
+          with shunts to configure a PRIMARY or SECONDARY board respectively.
+          The two boards are interconnected by header CN9 on each board with a 30 pin
+          ribbon cable.
 
 
-3.0 - Design History
-====================
+3.0 - Electrical Description
+----------------------------
+    This section describes in detail the separate circuits operation, and
+    electrical design considerations.  
 
-    When designing this board from scratch, a prototyping board was used to
-    develop the circuit, and aligator clip jumpers leads connected the protoboard
-    to a 66 block with a 1A2 phone plugged into it to test the phone's own circuits.
+    Simplified circuit diagrams will be included below to augment the text.
+    Refer to separate schematics and circuit board layout for the actual
+    layout details.
 
-    The first problem to tackle was the ring detect and line detect circuits.
-    I studied various patents, a variety of BSP documents, such as the Western Electric
-    400 type line card circuits and KSU schematics.
+    In the following:
 
-    Once that was designed, the Hold circuit was developed. This could discriminate
-    between a Hold button being pressed, and a hangup. Hold triggered a relay to lock
-    the Hold resistor across the line, putting the call on Hold, and would release on
-    an extension pickup. I also checked that CPC/Disconnect Supervision from the CO
-    could properly reset a call on Hold.
-
-    Next the intercom circuit was developed, starting with the voice battery,
-    and then integrating the DTMF decoder for extension dialing. Later, a rotary
-    detect circuit was designed using a PIC to count the rotary pulses.
-
-    Once these circuits were working, a PCB board design was created, REV B,
-    which used linear components and digital logic, no CPUs.
-
-    Later tests were done with a PIC chip to simplify the design and implement
-    features hard to implement with pure linear logic. This allowed software
-    development to evolve without making changes to the board.
-
-    Over a series of board revisions, necessary features and tweaks were made
-    to the board layout to support different kinds of phones, and solve particular
-    user and board assembly issues.
-
-    REV-J4 is the culmination of all such features, and is the latest revision to
-    date as of this writing.
+        3.1 - CO Line Handling: Incoming calls, putting calls on Hold, retrieving calls.
+        3.2 - Incoming call: bell ringing
+        3.3 - Incoming call: buzz ringing
+        3.4 - Intercom - Dialing and voice circuit
+        3.5 - Interlink feature
 
 
-4.0 - Electrical Description
-============================
+    3.1 - CO Line Handling
+    ----------------------
+    The CO lines are passed directly through the KSU to the line extensions.  The Tip/Ring
+    pair from the CO pass through optocouplers IC1 and IC2 to sense, but not impede the
+    telco's signals.
 
-    This section describes the overall circuit design and electrical design
-    considerations.  Refer to separate schematic and circuit board for actual
-    circuit layout.
+    Since the Line #1 circuit is exactly the same as Line #2's, for simplicity only Line
+    #1's components will be referred to.
 
-    Addressing the "Line Card" functions first, since the Line #1 circuit 
-    is exactly the same as Line #2's, Line #1's components are referred
-    to here for simplicity.
-
-    Let's start with the sensing of the CO (Central Office) Tip and Ring
-    wire pair. 
-
-    There's two things the KSU must sense from the CO line, and each uses
-    separate circuits to do so:
+    There's two things the KSU must sense from the CO line, and each uses separate circuits
+    to do so:
 
         > Ring Detect - Detect ringing during an incoming call
         > Line Detect - Detect whether the Line is "in use" or "idle"
 
-    Both of these circuits use LDA-110 "AC input" optocouplers, and 
-    effectively isolate the CO signals from the KSU's own.  The AC inputs
-    on the optocoupler are back-to-back LEDs, and have darlington transistors
-    with open collector outputs. H11AA1 optocouplers are equivalent to the
-    LDA-110, and can therefore be used interchangeably.
+    Both of these circuits use LDA-110 "AC input" optocouplers, and effectively isolate the
+    CO signals from the KSU's own.  The AC inputs on the optocoupler are back-to-back LEDs,
+    and have darlington transistors with open collector outputs. H11AA1 optocouplers are
+    equivalent to the LDA-110, and can therefore be used interchangeably.
 
     An in-depth description of each of these circuits:
 
@@ -210,37 +240,112 @@
         ---------------------
 
         When the CO line is idle, it rests at 48 VDC. When there's an incoming
-        call, the CO cuts in a 105 VAC 25 Hz ring voltage with sufficient power
-        to drive several bells.
+        call, the CO cuts in a 105 VAC/25 Hz ring voltage with sufficient power
+        to drive several common electromechanical bells:
 
         <IMG SRC="images/1a2-manual--line-voltage-idle-vs-ring.png">
 
-        To detect ringing, optocoupler IC1 is connected across the CO line's
-        Tip and Ring signals to detect AC ring voltage:
+        To detect ringing, the LDA-110 optocoupler IC1 is connected across
+        the CO line's Tip and Ring signals to detect AC ring voltage:
 
         <IMG SRC="images/1a2-manual--ring-detect-circuit.png" WIDTH=700>
 
-        In the above, the 33K resistor (R5) and 0.47uF capacitor C1 form a filter
-        to block DC and any voice frequencies, passing only the relatively low
-        frequency AC ringing with sufficient voltage to drive the optocoupler
-        through the 33K resistor.  A parallel 1K resistor (R6) across the inputs
-        desensitizes the optocoupler from low voltage transients to prevent false
-        trigger ringing.
+        In the above, the 33K resistor (R5) and 0.47uF capacitor (C1) together
+        form a DC blocking R/C filter to prevent the optocoupler turning on for any
+        DC voltage on the line. These components also block high voice frequencies,
+        passing only the relatively low frequency/high voltage 105 VAC/25Hz ring
+        voltage sufficient to drive the optocoupler through the 33K resistor.
+        A parallel 1K resistor (R6) across the optocoupler's inputs further
+        desensitizes the optocoupler from low voltage transients to prevent
+        false ring triggers.
 
-        Detailed walkthru:
+            4.1.1.1 - Ring Detect: Line Idle
+            --------------------------------
 
-            Idle
-            ----
+            When the CO line is not ringing, the LDA110 "Ring Detect" optocoupler
+            is off, its open collector output left floating. 
+
+            The floating output is connected to the RA5 input port on PIC chip CPU1,
+            which is internally pulled high to +5v by the PIC chip's firmware-configured
+            Weak Pull Up (WPU) resistor for the RA5 port.
+
+            Therefore, CPU1 sees the input in a logic "1" state (high) when the line
+            is not ringing.
+
+            4.1.1.2 - Ring Detect: Line Ringing
+            -----------------------------------
+            When an incoming call arrives, the Central Office (CO) ~105 VAC / 25Hz
+            ring bursts energizes the AC input LEDs in the RING DETECT optocoupler,
+            causing the optocoupler to turn on, grounding its open collector output.
+            This causes CPU1's RA5 input to see logic "0" during ringing.
+
+                NOTE: The optocoupler turns off during the zero crossing transitions of
+                the AC ring voltage, causing CPU1 to actually see an alternating hi/lo
+                at <U>double</U> the AC input frequency (two zero crossings per period
+                of the AC wave).  The CPU1 firmware smooths out this alternating signal
+                by way of the Debouce circuit tuned to reject the short off-transisitons
+                as "noise". 
+
+            The CPU1 firmware switches the line state to "Ringing" (see Firmware -> State Machine)
+            which causes these events in the KSU:
+
+                > The Line #1 lamp circuit begins flashing at 1Hz to indicate the
+                  incoming call for that line.
+
+                > The bells programmed to ring in the BELL CALL section, and buzzers
+                  programmed to buzz in the BUZZ CALL section will be operated at the
+                  KSU controlled ring cadence (1 sec ring, 3 sec silence).
+
+                > The TIP32 transistor Q4 will remain energized during the entire
+                  ring cycle (even between rings) to enable external ring generators.
+
+                > A CPU1 firmware emulated "Interrupter" is started (if not already running
+                  due to other lines ringing on Hold). This "Interrupter", much like the
+                  original electromechanical Interrupter in the original Western Electric KSUs,
+                  handles generating the lamp flash, lamp wink, and ring cadence signals.
+
+            These circuits are described in more detail under their separate sections below:
+
+                > Line lamp operation is described under "Phone Outputs -> Line Lamps"
+                > Bell ringing is described in the "Phone Outputs -> Bell Ring" section
+                > Buzz ringing is described in the "Phone Outputs -> Buzz Ring" section
+                > "Interrupter" is described under "Firmware -> Interrupter"
+
+            The "interrupter" runs for 6 seconds, and if another ring from the CO occurs,
+            the interrupter continues running for another 6 seconds, keeping the line lamps
+            flashing and the bell ringing.
+
+            If someone answers the call, the firmware detects the A lead (see "A1 Detect")
+            and current through
+            the Line Detect optocoupler, stopping the ring cycle, and causing the line lamp
+            to light for that line, and the call is now in progress.
+
+            If no one answers the call and the remote caller hangs up, the CO stops sending
+            ring bursts, and the KSU's interrupter will complete its 6 second ring cycle, 
+            causing the flashing and ringing to stop, returning the line to an Idle state.
+
+            For details on how the Line #1 lamp circuit operates, see the "Line Lamps"
+            subsection under "Phone Outputs" below.
+
+            For details on how ringing operates, see the "Bell Ring" and "Buzz Ring"
+            sections under "Phone Outputs" below.
+
+
+
+
+            4.1.1.1 - Line Idle
+            -------------------
             When the line is idle, the optocoupler is off, its output to the CPU1 PIC
             chip is floating. A software-configured pullup resistor keeps the signal
             high when the optocoupler's output is floating, thereby providing a
             logic 1 to the PIC when the line is idle, and not actively ringing.
 
-            Ringing
-            -------
-            When the CO provides a 25 Hz ring signal, the optocoupler energizes on the high
-            and low halves of the AC wave, turning off briefly during the zero transitions.
-            This creates a squarewave output from the optocoupler with a high duty cycle
+            4.1.1.2 - Line Ringing
+            ----------------------
+            When the CO provides a 25 Hz ring signal, optocoupler IC1 energizes on the high
+            and low halves of the AC wave, turning off briefly during zero transitions.
+
+            This creates a squarewave output at the optocoupler with a high duty cycle
             that is double the frequency of the CO's ring frequency.
 
             The PIC chip uses a software filter to ignore the zero transitions, so that
@@ -439,19 +544,15 @@
         <IMG SRC="images/1a2-manual--line-lamp-driver-circuit.png" WIDTH=700>
 
         When CPU1 wants to turn on Line #1's lamps, it drives the L1_LAMP output high,
-        turning on a gate in the ULN2803 (IC7) which drives its open collector output low
-        to the 4M resistors R2 and R4, which together create a slow switching response
-        from the FET power transitor (Q1), turning on the lamp without generating much
-        switching noise.
+        turning on a gate in the ULN2803 (IC7) which drives its open collector output low,
+        driving the gate input to IRF-9530 FET power transistor (Q1) through a pair of
+        4 megohm resistors (R2 and R4).
 
+        These high value resistors at the input gate of the FET slows its switching time,
+        preventing sudden current spikes when lighting the line lamps, which can cause
+        switching noise on the voice circuits over long 25 pair cable runs.
 
         <IMG SRC="images/1a2-manual--irf9530-slow-transition.png" WIDTH=800>
-
-
-        The pair of 4 megohm resistors R2 and R4 at the gate of the FET (above) slows
-        the switching time so lamps don't transition on and off too quickly, avoiding
-        current spikes that can cause noise crosstalk on the voice circuits over the
-        long 25 pair cable runs.
 
         For Line #5 (Intercom), a simple circuit controls the Line #5 lamps; the A lead
         directly controls the coil for relay K5, which switches 12 VDC directly to the
@@ -518,7 +619,7 @@
 
 
     4.3 - Phone Outputs
-    ===================
+    -------------------
 
     The phones have these "Output" signals to the KSU and CO:
 
@@ -560,6 +661,7 @@
         To tell the difference between Hold or Hang Up, the PIC chip compares
         the "A Lead" and "Line Detect" inputs:
 
+
             4.3.1.1 - Hold Detection
             ------------------------
             1A2 phones have no separate signal for the Hold button.
@@ -594,6 +696,7 @@
 
         So the combination of A Lead sensing and Line Detect are used to differentiate
         "Hold" from "Hang Up".
+
 
         4.3.2 - Intercom DTMF Dialing
         -----------------------------
@@ -658,7 +761,7 @@
 
 
         4.3.4 - Intercom Extension Buzzing
-        --------------------------
+        ----------------------------------
         The CPU2 firmware considers the dialed digit to determine which extension's
         buzzer to buzz, and sends a +5 volt on/off signal running at 60Hz to the 
         appropriate output.
@@ -675,13 +778,12 @@
 
 
     4.4 - Phone Inputs
-    ==================
-
+    ------------------
     The phone extensions have these signals as inputs:
+
 
         4.4.1 - Line Lamps
         ------------------
-
         The line lamps in 1A2 phones are all wired in parallel. A single IRF9530 transistor
         (Q1) controls the Line #1 lamp in all extensions, lighting them simultaneously
         to indicate if a line is in use, or flashes the lamp for incoming calls or calls
@@ -752,7 +854,6 @@
 
         4.3.2.2 - Ring Programming
         --------------------------
-
         Ringing for each extension is programmable by the DIP switches SW2,
         allowing the installer to configure which extensions will ring for
         each of the two lines CO lines the board manages.
@@ -787,7 +888,6 @@
 
         4.3.3 - Buzzer
         --------------
-
         The buzzer in 1A2 phones is used in two ways by the Seriss KSU:
 
             o To get someone's attention to pickup the intercom
@@ -818,7 +918,7 @@
             source is triggering the buzzer.
 
 
-            BUZZER IDLE
+            Buzzer Idle
             -----------
             When the KSU is idle, the buzzers are all 'off'; both cpus buzzer outputs are
             grounded, causing the associated ULN2803's to present open outputs to the base
@@ -827,7 +927,7 @@
             up to +12v, preventing the transistor inputs from needing pullup resistors.
 
 
-            BUZZ RINGING: GENERATED BY CPU1
+            Buzz Ringing: Generated by CPU1
             -------------------------------
             If an extension is programmed to buzz during incoming call, it operates the
             buzzer as it would the bell, with a 1sec 60Hz burst of a 12v squarewave,
@@ -846,15 +946,15 @@
             the appropriate TIP125 (Q7 - Q10), turning the transistor on-and-off at 60Hz,
             outputing a 12V squarewave.
 
-            1n4148 flyback diodes (D22 - D25) prevent back currents from the inductive
-            buzzers during the "off" transitions of the TIP125's, shunting the current
-            spikes to ground. These back currents are very short but of significant voltage,
-            close to 200V.
+            1n4148 flyback diodes (D22 - D25) prevent inductor back current spikes from
+            the buzzers by shunting the spikes to ground. These spikes occur when the
+            TIP125 power transistors transition to "off". They're very short, but of
+            significant voltage, close to 200V.
 
             <IMG SRC="images/1a2-manual--buzz-call-circuit.png" WIDTH=700>
 
 
-            INTERCOM BUZZING: GENERATED BY CPU2
+            Intercom Buzzing: Generated by CPU2
             -----------------------------------
             When someone picks up the intercom line (Line #5) and dials an extension,
             CPU2 operates the buzzer of that extension.
@@ -906,7 +1006,7 @@
         The 5 line buttons each have a 10VAC lamp, a separate wire pair for each. With
         this 1A2 card, 12VDC is used to run the lamps, which at that voltage is around
         ~42 mA per lamp.  So with a max of 4 phone sets, if Lines 1, 2 and 5 are all lit
-        at the same time, that's (3 x 4 x 42mA) = 504mA current draw for just the lamps.
+        at the same time, that's (3 x 4 x 42mA) or 504mA current draw for just the lamps.
 
         When a button is down and the receiver is lifted, that button's switch closes
         the "A lead" pair for that line. The KSU board uses this switch closure for
@@ -941,7 +1041,6 @@
 
     4.3 CIRCUIT DESCRIPTION
     -----------------------
-
     Electronics are used to achieve the various needs of a 1A2 phone system:
 
         o Controls lamps, bells, buzzers on the phones to give visual
@@ -1041,38 +1140,6 @@
         4.3.1.2 RING DETECTION
         ----------------------
 
-        While idle, the LDA110 "Ring Detect" optocoupler is off, providing an open
-        output on its pin #5, signalling the firmware on PIC CPU1 the line is not
-        ringing.
-
-        This output is pulled high by the PIC chip's internal WPU (Weak Pull Up)
-        resistors.
-
-        When a call arrives, ~105 VAC / 25Hz arrives on the T/R pair from the Central
-        Office (CO), which energizes the two AC detecting LEDs in the "RING DETECT"
-        optocoupler through a resistor and capacitor filter pair across the line. Due
-        to the AC ring voltage, this causes the optocoupler to turn on and off at the
-        AC frequency rate, turning off briefly during zero crossing.
-
-        The firmware detects this with a noise rejection and software filter, and starts
-        a software "Interrupter" that generates the 1Hz lamp flashing signal to flash
-        the line lamps to indicate an incoming call, and starts the ring sequence,
-        causing the bells/buzzers configured to sound at the ring cadence (1 sec on,
-        3 secs off).
-
-        The "interrupter" runs for 6 seconds, and if another ring from the CO occurs,
-        the interrupter continues running for another 6 seconds, keeping the line lamps
-        flashing and the bell ringing.
-
-        If someone answers the call, the firmware detects A lead and current through
-        the Line Detect optocoupler, stopping the ring cycle, and causing the line lamp
-        to light for that line, and the call is now in progress.
-
-        If no one answers the call and the remote caller hangs up, the CO stops sending
-        ring bursts, and the KSU's interrupter will complete its 6 second ring cycle, 
-        causing the flashing and ringing to stop, returning the line to an Idle state.
-
-
         4.3.2 HOLD CIRCUIT
         ------------------
         The Hold circuit is simply a relay that shunts a Hold resistor across the Tip/Ring
@@ -1147,7 +1214,7 @@
 ---
 
 
-        4.3.4 INCOMING CALLS
+        4.3.4 Incoming Calls
         --------------------
         When a line is ringing, the output of the "Ring Detect" optocoupler triggers the
         firmware to detect ringing.  This causes the firmware to react as follows:
@@ -1269,7 +1336,7 @@
 vvv I YAM HERE vvv
 
 
-    4.4 INTERCOM
+    4.4 Intercom
     ------------
     The intercom is provided on Line 5. This line is provided internally for the
     1A2 extension phones only, and has nothing to do with the CO telco lines.
@@ -1372,8 +1439,8 @@ vvv I YAM HERE vvv
            this trace /removed/.
 
 
-    IMPLEMENTATION OF BIDIR DATA TRANSMISSION
-    -----------------------------------------
+    Implementation of Bidirectional Data Transmission
+    -------------------------------------------------
     Some features of the PIC were used to implement doing clean
     bidirectional data transmission of 8bit values over a single port:
 
@@ -1391,7 +1458,6 @@ vvv I YAM HERE vvv
               > When SYNC_ILINK goes low, receiver interrupt zeroes TMR0
               > When SYNC_ILINK goes high, receiver interrupt saves TMR0 value
                 which is later used to determine if 1 or 0 was sent
-
 
         > Both boards leave SYNC_ILINK configured as an input
           until the PRIMARY decides to send data. 
@@ -1417,23 +1483,23 @@ vvv I YAM HERE vvv
 ***** WORK IN PROGRESS: ABOVE THIS LINE ^^^
 </FONT>
 
-    4.5 OPTIONAL EXTENSIONS
+    4.5 Optional Extensions
     -----------------------
-        The board supplies at least 4 extensions, and each can be dialed
-        for buzzing directly using the TouchTone dial pad by dialing 1 through 4.
+    The board supplies at least 4 extensions, and each can be dialed
+    for buzzing directly using the TouchTone dial pad by dialing 1 through 4.
 
-        But with 66 blocks, you can add an extra 4 extensions (for a total of 8)
-        that can be buzzed by the TouchTone dial pad by dialing 5 through 8.
+    But with 66 blocks, you can add an extra 4 extensions (for a total of 8)
+    that can be buzzed by the TouchTone dial pad by dialing 5 through 8.
 
-        See section 3.2 "EXPANDED WIRING: ADDING EXTRA EXTENSIONS #5-#8"
-        above for more info.
+    See section 3.2 "EXPANDED WIRING: ADDING EXTRA EXTENSIONS #5-#8"
+    above for more info.
 
-    4.6 DEBUGGING
+
+    4.6 Debugging
     -------------
 
-       4.6.1 - STATUS LEDS
+       4.6.1 - Status LEDS
        -------------------
-
        There are various status LEDs and test points on the board.
 
        Each of the "LINE" sections has 3 status LEDs:
@@ -1455,7 +1521,8 @@ vvv I YAM HERE vvv
        When a call is on hold, the "L" light should be on, "A" should be off,
        and the "Line Use" light should wink.
 
-       DEBUGGING WITH A METER
+
+       Debugging With a Meter
        ----------------------
        Using a meter, you can test for +12/Gnd at the power connector
        terminal screws. Ditto for the 90VAC/20Hz supply.
@@ -1519,10 +1586,11 @@ vvv I YAM HERE vvv
        be negative.
 
 
-    4.7 EXAMPLES
+    4.7 Examples
     ------------
 
-        4.7.1 - SYSTEM IDLE
+
+        4.7.1 - System Idle
         -------------------
         When the system is idle (waiting for a call or no one using a line),
         relays "A" and "L" are off, lamps are all out, ringers and buzzers are
@@ -1551,7 +1619,8 @@ vvv I YAM HERE vvv
         Since RING FLASH OSCILLATOR is at ground when there's no rniging,
         the line's ring output (STA RG) is idle.
 
-        4.6.2 - INCOMING CALL
+
+        4.6.2 - Incoming Call
         ---------------------
         When a line rings, the central office (CO) sends 1 second
         bursts of 90VAC, with ~4 seconds between each burst on the
@@ -1598,7 +1667,8 @@ vvv I YAM HERE vvv
 
         During all of this, the "L" and "A" relays both remain off.
 
-        4.6.3 - RINGING CALL ANSWERED
+
+        4.6.3 - Ringing Call Answered
         -----------------------------
         If someone answers the ringing call, several things happen
         simultaneously:
@@ -1649,9 +1719,9 @@ vvv I YAM HERE vvv
         If I remember correctly, the old 1A2 KSU's (circa 1980) had this
         same artifact, so for now I'm leaving it in.
 
-        4.6.4 - PLACING CALL ON HOLD
-        ----------------------------
 
+        4.6.4 - Placing Call On Hold
+        ----------------------------
         An active call is put on Hold when the user presses the Hold
         button, which first opens the A lead, then removes the phone's
         hybrid from Tip/Ring.
@@ -1675,8 +1745,9 @@ vvv I YAM HERE vvv
 
         With the call now on "hold", one of two things can happen:
 
-            I. SOMEONE PICKS UP THE CALL
-            ----------------------------
+
+            I. Someone Picks Up Call
+            ------------------------
             In the case of someone taking the call off hold, they press the line
             button and pick up the handset, which:
 
@@ -1692,8 +1763,9 @@ vvv I YAM HERE vvv
             hybrid (instead of the Hold resistor), which keeps the "L"
             relay operating.
 
-            II. THE REMOTE CALLER HANGS UP
-            ------------------------------
+
+            II. Remote Caller Hangs Up
+            --------------------------
             If the remote hangs up before someone retakes the call,
             the Central Office briefly sends a CPC signal (Calling Party
             Control), which briefly opens the Tip/Ring pair.
@@ -1717,7 +1789,8 @@ vvv I YAM HERE vvv
             remaining on hold even if no one is there, automatically
             freeing up the line to accept new calls.
 
-        4.6.5 - HANGING UP AN ACTIVE CALL
+
+        4.6.5 - Hanging Up an Active Call
         ---------------------------------
         When an extension hangs up an active call, several things happen
         simultaneously, returning the system to the Idle state:
@@ -1737,7 +1810,7 @@ vvv I YAM HERE vvv
         This leaves the system ready to receive new calls.
 
 
-PARTS LIST
+Parts List
 ----------
 
     Parts are organized by section.
@@ -1751,13 +1824,15 @@ PARTS LIST
     Digikey part numbers are /suggestions/, and were used during R&amp;D
     and testing. Other parts of similar rating may be used.
 
-    ORDERING CONSIDERATIONS
+
+    Ordering Considerations
     -----------------------
     When ordering parts, most parts can be generally sourced with lax
     tolerances, but some parts need special consideration.
 
-        PARTS ON CENTRAL OFFICE CIRCUIT
-        -------------------------------
+
+        Central Office Circuit Parts
+        ----------------------------
         Parts connected to the Central Office (CO) circuit are susceptible
         to extreme electrical spikes and/or large voltage potentials due to
         storms (lightning), or interaction with live AC or large voltage
@@ -1776,34 +1851,33 @@ PARTS LIST
 
             o All parts involved in the Tip/Ring circuit
 
-        CAPACITORS: POLARIZED VS. UNPOLARIZED
+
+        Capacitors: Polarized vs. Unpolarized
         -------------------------------------
         Capacitors without "+" markings /MUST/ be UNpolarized.
         Capacitors with "+" markings /can/ be polarized but don't have to be.
 
-        DIODES
+
+        Diodes
         ------
         There are 3 kinds of diodes used in this circuit.
 
-        1. BUZZER PROGRAMMING DIODES ("BUZZ CALL" SECTION)
-        -----------------------------------------------
 
+            1. Buzzer Programming Diodes - "BUZZ CALL" Section
+            --------------------------------------------------
             These diodes can be small signal diodes, like the 1N914
             (Digikey #1N914VSCT-ND).
 
-        2. RELAY COIL KICK SUPPRESSION DIODES
-        -------------------------------------
+            2. Relay Coil Flyback Diodes
+            ----------------------------
+            These diodes are arranged "backwards" across all relay coils to suppress inductive
+            back currents when the relay's coil switches off.
 
-            These diodes are arranged "backwards" across all relay coils
-            to prevent back currents when the relay switches off.
+            These should be rated 10 times the supply voltage, so in the case of 12 volt relays,
+            120 volts or higher should be used.
 
-            These should be rated 10 times the supply voltage, so in the
-            case of 12 volt relays, 120 volts or higher should be used.
-            1N4003 (200v 1A), e.g. Digikey #1N4003-TPMSCT-ND.
-
-        3. RING PROGRAMMING DIODES ("BELL CALL" SECTION)
-        ------------------------------------------------
-
+            3. Ring Programming Diodes ("BELL CALL" Section)
+            ------------------------------------------------
             The ring programming diodes must handle 90VAC/30Hz and peak voltages
             for the inductive load presented by the bell ringers.
 
@@ -1830,16 +1904,11 @@ PARTS LIST
                     something done by the old bell system installers when diode
                     were used to program ringing.
 
-        SOCKETS
+        Sockets
         -------
         All IC chips SHOULD be socketed for proper servicing/debugging.
 
-        The 2N3906 transistors SHOULD be socketed for servicing/debugging.
-
-        TIP125 power transistors CAN be socketed if appropriate sockets
-        are used.
-
-        NO HEAT SINKS
+        No Heat Sinks
         -------------
         The circuit is designed for components to run cool during use.
         Power transistors and voltage regulators should NOT need heat sinks.
@@ -1851,12 +1920,16 @@ PARTS LIST
                 Wiring between phones and board
                 Metal objects are shorted across the back of the board
 
-        PART SPECIFICATIONS: FLEXIBILITY
+        Part Specifications: Flexibility
         --------------------------------
+        Many of the parts do not need precise values, and a range can be used:
 
             o The HOLD RESISTOR is spec'ed at 160 ohms, but 120 may also be used.
 
             o The RING DET resistor speced at 56K can be 50K-60K.
+
+            o The 5.6k resistor network RN1 can also be 4.7K, or any value
+              in between.
 
             o The large female RJ21 connectors can be either "press fit"
               or solder style.  These connectors often have many monikers;
@@ -1865,33 +1938,19 @@ PARTS LIST
               sure the lead diameter and spacing is consistent with what the
               circuit board provides.
 
-            o Transistors 2n3906 can be other PNP equivalents.
-              It's recommended these be socketed.
+            o LDA110 optocouplers may also be other "AC INPUT" darlington optos,
+              such as H11AA1.
 
-              I've found one can order long SIP sockets, and simply cut
-              them into 3 pin sections with wire cutters.
+              It's critical the opto's inputs have back-to-back facing LED diodes
+              in cases where the opto is used as part of the voice circuit. For others,
+              such as the A1 and A2 optos, this is not necessary, and DC input optos
+              may be used, provided the input polarity is correct.
 
-            o LDA110 optocouplers may also be other "AC INPUT" darlington optos.
-              It's critical the opto's inputs have back-to-back facing LED diodes,
-              to prevent introducing any kind of polarization or line imbalances
-              to the phone circuit.
-
-            o Darlington PNP power transistors (TIP125) for LAMPS and
-              INTERCOM POWER can also be non-darlington PNP power transistors
-              (like TIP32) if 1K base resistors are used. It is actually advised
-              to use TIP32's if you're attaching more than 4 extensions, as TIP32's
-              run cooler than the TIP125's under heavier loads.
-
-              It is advised, however, to /only/ use TIP125's in the "BUZZER CONTROL"
-              section, as high gain is useful for the BUZZ CALL feature.
-
-            o The DIP switches may also be jumpers.
-
-            o Power connections can be screw terminals, though pluggable connections
-              are advised for easy servicing/board swaps.
+            o Power connections can be simple screw terminals, though pluggable screw
+              terminals specified are advised for easy servicing/board swaps.
 
             o Any capacitors marked with "+" can be either polarized OR unpolarized.
-              Only caps without the "+" MUST be unpolarized.
+              Caps without the "+" MUST be unpolarized.
 
     ( ) GENERAL BOARD LAYOUT
         ( ) POWER
@@ -1931,3 +1990,48 @@ PARTS LIST
         ( ) Talk
         ( ) Hangup
 
+
+3.0 - Design History
+--------------------
+
+    When designing this board from scratch, a prototyping board was used to
+    develop the circuit, and aligator clip jumpers leads connected the protoboard
+    to a 66 block with a 1A2 phone plugged into it to test the phone's own circuits.
+
+    The first problem to tackle was the ring detect and line detect circuits.
+    I studied various patents, a variety of BSP documents, such as the Western Electric
+    400 type line card circuits and KSU schematics.
+
+    Once that was designed, the Hold circuit was developed. This could discriminate
+    between a Hold button being pressed, and a hangup. Hold triggered a relay to lock
+    the Hold resistor across the line, putting the call on Hold, and would release on
+    an extension pickup. I also checked that CPC/Disconnect Supervision from the CO
+    could properly reset a call on Hold.
+
+    Next the intercom circuit was developed, starting with the voice battery,
+    and then integrating the DTMF decoder for extension dialing. Later, a rotary
+    detect circuit was designed using a PIC to count the rotary pulses.
+
+    Once these circuits were working, a PCB board design was created, REV B,
+    which used linear components and digital logic, no CPUs.
+
+    Later tests were done with a PIC chip to simplify the design and implement
+    features hard to implement with pure linear logic. This allowed software
+    development to evolve without making changes to the board.
+
+    Over a series of board revisions, necessary features and tweaks were made
+    to the board layout to support different kinds of phones, and solve particular
+    user and board assembly issues.
+
+    REV-J4 is the culmination of all such features, and is the latest revision to
+    date as of this writing.
+
+CHAR TEST:
+    ~!@#$%^&*()_+
+    `1234567890-=
+    {}|[]\
+    :";'
+    <>?,./
+
+</BODY>
+</HTML>

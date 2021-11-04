@@ -1,3 +1,10 @@
+-------------------------------------------------------------------
+This is a collection of somewhat random notes while I was initially
+learning/developing on the PIC chips. It's here mainly for my own
+reference. Much of this document is outdated with respect to the
+current revision boards + firmware.
+-------------------------------------------------------------------
+
 PIC CHIP PROGRAMMER: Ref: Hardware: https://www.youtube.com/watch?v=ksYe_FFAlEM
                           Software: https://www.youtube.com/watch?v=TIsiRmGVgUI
 
@@ -36,8 +43,7 @@ PICKIT 3 PROGRAMMER WIRING
 
         Software: 
 
-	      MicroChip recommends "MPLAB X IDE Software",
-		    which is what I ended up using.
+	    MicroChip recommends "MPLAB X IDE Software", which is what I ended up using.
 
 	    Earlier I'd been interested in using MikroC PRO for PIC v.5.4.0,
 	    as that had good online documentation + examples, but wasn't compatible
@@ -322,7 +328,9 @@ WHERE TO GET THE SOFTWARE
 
     After much histrionics that made the cat leave the room,
     I got two LEDs blinking properly with my PIC16F1709's using
-    Microchip's MPLABX IDE environment.
+    Microchip's MPLABX IDE environment. Learning PIC is hard; the data sheet
+    is hundreds of pages, and you really have to absorb it to properly develop
+    complex projects such as this one.
 
     Bought the PIC chips and a "PICKit 3" programmer from Digikey,
     and the rest was free software downloads of Microchip's IDE.
@@ -449,11 +457,15 @@ WHERE TO GET THE SOFTWARE
     and a fast/small IDE. But they didn't have an easy way to invoke
     the PICKit 3 programmer to upload the code to the chip.
 
+    I found with a Windows machine with sufficient speed and memory,
+    the Microchip MPLAB X IDE was able to function properly, but it
+    was tough going on a lesser machine.
+
     Apparently the approach was to configure MikroC to invoke Microchip's
     "standalone programmer", or "PIC Kit Programmer", which was simple
     and small and easy, but Microchip says they stopped supporting it
-    in favor of their massive "MPLAB IPE" instead, another bloated
-    java application similar to the "MPLAB IDE".
+    in favor of their massive "MPLAB IPE" instead, another java application
+    similar to the "MPLAB IDE" that suffers from being slow/heavy.
 
     So all the standalone PIC programmer apps I could find from Microchip
     were frozen in time, old enough not to include my relatively new chip
