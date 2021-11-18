@@ -174,7 +174,7 @@
 #pragma config STVREN  = ON         // Stack Overflow/Underflow Reset Enable (Stack Overflow or Underflow will cause a Reset)
 #pragma config BORV    = LO         // Brown-out Reset Voltage Selection (Brown-out Reset Voltage (Vbor), low trip point selected.)
 #pragma config LPBOR   = OFF        // Low-Power Brown Out Reset (Low-Power BOR is disabled)
-#pragma config LVP     = ON         // Low-Voltage Programming Enable (Low-voltage programming enabled)
+#pragma config LVP     = OFF        // Low-Voltage Programming Enable (Low-voltage programming enabled)
 // --- end section
 
 // PIC hardware includes
@@ -1399,4 +1399,3 @@ void main(void) {
         ++G_iter;                                      // may go above 250! (we don't want to wrap until timer resets)
     }
 }
-
