@@ -160,10 +160,9 @@ typedef struct {
 // GLOBALS
 const int     G_msecs_per_iter = (1000/ITERS_PER_SEC); // #msecs per iter (if ITERS_PER_SEC=125, this is 8)
 int           G_powerup_msecs  = 0;                    // counts up from 0 to 10,000 then stops
-int           G_msec           = 0;                    // counts up from 0 to 1000, steps by G_msecs_per_iter, wraps to zero.
 uchar         G_porta, G_portb, G_portc;               // 8 bit input sample buffers (once per main loop iter)
-volatile char G_buzz_ext     = -1;                     // extension to buzz (-1 for none, 0 for all)
-                                                       // (used by isr() to run buzzer)
+volatile char G_buzz_ext       = -1;                   // extension to be buzzed:-1 for none, 0 for all (isr() uses this)
+
 // Initialize debounce struct for rotary input values
 //
 //     'value' range:
@@ -218,7 +217,11 @@ void OnhookDebounceInit(Debounce *d) {
 }
 
 // Flash the CPU2 STATUS led two quick blinks per second
-void FlashCpuStatusLED() {
+//    Call once per main loop iter to keep internal timer accurate.
+//    val: 1 - flash led, 0 - disable flashing
+//
+void FlashCpuStatusLED(int val) {
+    static int led_msec = 0;   // local msec counter for led flash timing
     // 2 quick blinks per second
     //
     //             1 second (1000ms)
@@ -233,7 +236,13 @@ void FlashCpuStatusLED() {
     //      :     :     :     :            :
     //      0     150   300   450          1000
     //
-    CPU_STATUS_LED = (G_msec <= 150) || (G_msec >= 300 && G_msec <= 450) ? 1 : 0;
+    if ( val ) {
+        led_msec = (led_msec + G_msecs_per_iter) % 1000; // advance timer, wrap at 1000
+        CPU_STATUS_LED = (led_msec <= 150) || (led_msec >= 300 && led_msec <= 450) ? 1 : 0;
+    } else {
+        CPU_STATUS_LED = 0;                // LED off
+        led_msec       = 0;                // reset when off, so starts blinking at start of sequence
+    }
 }
 
 // See p.xx of PIC16F1709 data sheet for other values for PS (PreScaler) -erco
@@ -374,7 +383,7 @@ void RotaryReset(Rotary *r) {
 }
 
 // Reset debounce struct to assume a particular state
-void DebounceReset(Debounce *d, int val) {
+void ResetDebounce(Debounce *d, int val) {
     d->value  = val;
     d->thresh = (val==0) ? d->on_thresh    // val off? must meet on_thresh to turn on
                          : d->off_thresh;  // val on? must meet off_thresh to turn off
@@ -482,6 +491,7 @@ void SampleInputs() {
 
 void main(void) {
     int digit;          // dtmf or rotary dialed digit
+    int is_onhook;      // ICM onhook flag
     Rotary rot;         // rotary management struct
     Debounce rdeb;      // rotary debounce/hysteresis struct
     Debounce hookdeb;   // onhook (ICM A lead) debounce/hysteresis
@@ -502,8 +512,7 @@ void main(void) {
         // Sample input ports all at once
         SampleInputs();
 
-        // Keep the millisecond counter running..
-        G_msec = (G_msec + G_msecs_per_iter) % 1000;   // wrap at 1000
+        is_onhook = IsOnhook(&hookdeb);
 
 /*** DEBUG
         // USE SCOPE TO DEBUG Debounce OF ROTARY
@@ -533,17 +542,17 @@ void main(void) {
         if ( ++G_iters > ITERS_PER_SEC ) G_iters = 0;   // wrap to 0 each sec
 ***/
 
+        // Manage LED flashing when offhook
+        FlashCpuStatusLED(is_onhook ? 0 : 1);    // run status LED when not onhook
+
         // Only detect dialing when OFFHOOK..
-        if ( IsOnhook(&hookdeb) ) {
-//DEBUG     CPU_STATUS_LED = 0;
-            G_buzz_ext = -1;                   // ICM onhook? Ensure no buzzing or dialing checks
-            RotaryReset(&rot);
-            DebounceReset(&rdeb, 0);           // reset to 0 (when IC11 is 'on', input is off)
+        if ( is_onhook ) {
+            // ICM onhook?
+            G_buzz_ext = -1;                   // disable buzzing when onhook
+            RotaryReset(&rot);                 // disable rotary digit parsing
+            ResetDebounce(&rdeb, 0);           // reset to 0 (when IC11 is 'on', input is off)
         } else {
             // ICM offhook?
-            FlashCpuStatusLED();               // flash status LED when ICM offhook
-//DEBUG     CPU_STATUS_LED = 1;
-
             // Handle any DTMF or Rotary dialing
             if ( (digit = GetDTMFDigit()) )
                 G_buzz_ext = digit;            // DTMF dialed digit? Buzz that extension
