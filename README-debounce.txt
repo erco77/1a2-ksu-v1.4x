@@ -21,7 +21,7 @@ OVERVIEW
             int thresh;         // 'current' threshold value implementing 'snap-action' hysteresis
         } Debounce;
 
-  And the structure initialized with values specific to the application this way:
+  The structure is initialized with values specific to the application this way:
 
     // Initialize debounce struct
     //
@@ -42,9 +42,44 @@ OVERVIEW
         d->thresh     = 15;
     }
 
-  ..where the non-zero values would be determined empirically, depending on the needs
-  of the application. In this case the values are in milliseconds, the values indicating
-  and/or summing how long the input digital signal was in one state or another (on or off).
+  ..where the non-zero values would be determined empirically, depending on the timing needs
+  of the application.
+
+  The values represent the polling speed; if the polling speed is 1 msec between polls,
+  then the values represent msec timing; on_thresh=15 means the state of the input must
+  be 'on' for 15 msecs (15 polls of the input being '1').
+
+  All the values in the structure represent how long the digital input signal has been
+  in an on or off state, "how long" depenedent on the polling speed.
+
+  Operation Example
+  -----------------
+  Let's say 'thresh' is set to 'on_thresh', and value is 5.
+      If value is 5 and the input polls as 1, value increments to 6.
+      If value is 5 and the input polls as 0, value decrements to 4.
+  The running 'value' will not go below 0 or above max_value.
+
+  If 'value' climbs past the 'thresh' value, then:
+      > 'thresh' is loaded with the value of 'off_thresh'
+      > The output snaps to 1, where it will remain until value falls below 'thresh' (off_thresh)
+
+  So once 'thresh' is passed, output snaps to 1, and the thresh value becomes off_thresh,
+  lowering the bar for value to have to descend below in order to transition the output
+  back to 0.
+
+  The output of the class is based comparing 'value' to 'thresh':
+
+      If value > thresh, output is 'on'
+      If value < thresh, output is 'off'
+
+  When the output is 1, thresh has already been set to 'off_thresh', so value
+  must go below that value before output can be 0. And when it does, thresh will
+  be set to 'on_thresh', ensuring the output remains 0 until value climbs past it again.
+
+  So basically, for a transition in either direction:
+
+      > There has to be enough polls of 1 for 'value' to climb above 'on_thresh'
+      > There has to be enough polls of 0 for 'value' to fall below 'off_thresh'
 
   This technique "cleans up" both sides of the signal; transitions to high, and transitions
   to low.
@@ -198,7 +233,7 @@ EXAMPLE OF SIGNAL CLEANUP
       else                           do_something_when_lo();
 
   To hide the details of the 'if ( deb.value > deb->thresh )', use
-  a function like IsXxx(), where Xxx is your signal's name. 
+  a function like IsXxx(), where Xxx is your signal's name.
 
   Example: if the hardware input is a "rotary switch" detector, then
   one might use a function named IsRotary() to return the cleaned

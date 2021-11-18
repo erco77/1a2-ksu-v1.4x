@@ -2,7 +2,20 @@
 Seriss 1A2 Single Board KSU - Board Revisions
 (Revisions shown newest first, oldest last)
 --------------------------------------------------------------------------------
-"REV J4"
+"REV-J5"
+
+  * Fixed problem in REV-J4 where ICM offhook would reset CPU1 due to powerup
+      noise from MT8870/CPU2 due to relay K5 contact bounce, causing calls on Hold
+      to drop during ICM pickup.
+
+  * CPU2 and MT8870 now receive +5v at all times
+
+  * K5 now drives PWDN pin of MT8870 and RA3 of CPU2 (as "ICM_ONHOOK") with +5/GND
+
+  * Firmware (1.4a) now hadnles RA3 as ICM_ONHOOK (A lead sense for ICM line 5)
+    to determine if dialing is to be parsed and status LED should flash
+
+"REV J4" <I>(Never released/Development Only)</I>
 
   * To support the new V1.4 firmware, the trace from CPU2 pin #2 was dropped.
      (This still allows V1.3x firmware to be used too, but V1.4 is better)
@@ -13,6 +26,14 @@ Seriss 1A2 Single Board KSU - Board Revisions
   * Mounting holes were adjusted to a standard 300x300 mil spacing from edges.
     (When "Velcro Slots" were added in REV-J3, the mounting holes were adjusted
     without concern for consistent edge clearance)
+
+  * RJ11-4 jack: swapped Tip/Ring.
+
+    The old wiring was based on a "telco jack" wiring, but the KSU wiring
+    should be more like a "phone jack", so when connected to a telco jack
+    with a standard RJ11 cable, it works correctly. Note that "telco jacks"
+    and "phone jacks" have mirrored wiring, because "standard" RJ11 cables
+    also mirror conductors.
 
   * Firmware V1.4 is now supported.
 

@@ -1,29 +1,28 @@
 // vim: autoindent tabstop=8 shiftwidth=4 expandtab softtabstop=4
 
 /*
- * File:   main.c
+ * File:   main-cpu2.c
+ * Version: 1.4A (requires REV-J5 and up)
  * Author: Greg Ercolano, erco@seriss.com
+ * Description: 1A2 Multiline Phone Control board -- CPU2 Firmware
  *
  * Created on Apr 24, 2019, 06:29 PM
- * Compiler: MPLAB X IDE V5.50 + XC8 -- Microchip.com
+ * Compiler: MPLAB X IDE V5.50 + XC8 (Microchip.com)
+ *                                  _    _
+ *                              V+ | |__| | GND
+ *                  x (IN) -- RA5  |      | RA0 -- (OUT) EXT8 BUZZ
+ *                  x (IN) -- RA4  |      | RA1 -- (OUT) EXT7 BUZZ
+ *       (MCLR) A_ICM (IN) -- RA3  |      | RA2 -- (OUT) EXT6 BUZZ
+ *         MT8870 STD (IN) -- RC5  |      | RC0 -- (OUT) EXT5 BUZZ
+ *    CPU STATUS_LED (OUT) -- RC4  |      | RC1 -- (IN) ROTARY PULSE
+ *         EXT4 BUZZ (OUT) -- RC3  |      | RC2 -- (IN) DTMF 'd'
+ *         EXT3 BUZZ (OUT) -- RC6  |      | RB4 -- (IN) DTMF 'c'
+ *         EXT2 BUZZ (OUT) -- RC7  |      | RB5 -- (IN) DTMF 'b'
+ *         EXT1 BUZZ (OUT) -- RB7  |______| RB6 -- (IN) DTMF 'a'
  *
- * Drive the 1A2 Multiline Phone Control board, CPU2 Firmware.
- *                               _    _
- *                           V+ | |__| | GND
- *               x (IN) -- RA5  |      | RA0 -- (OUT) EXT8 BUZZ
- *               x (IN) -- RA4  |      | RA1 -- (OUT) EXT7 BUZZ
- *        (MCLR) X (IN) -- RA3  |      | RA2 -- (OUT) EXT6 BUZZ
- *      MT8870 STD (IN) -- RC5  |      | RC0 -- (OUT) EXT5 BUZZ
- *     CPU STATUS (OUT) -- RC4  |      | RC1 -- (IN) ROTARY PULSE
- *      EXT4 BUZZ (OUT) -- RC3  |      | RC2 -- (IN) DTMF 'd'
- *      EXT3 BUZZ (OUT) -- RC6  |      | RB4 -- (IN) DTMF 'c'
- *      EXT2 BUZZ (OUT) -- RC7  |      | RB5 -- (IN) DTMF 'b'
- *      EXT1 BUZZ (OUT) -- RB7  |______| RB6 -- (IN) DTMF 'a'
- *
- *                         PIC16F1709 / CPU2
- *                        REV G, G1, H, J, J4
- *
- *      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ *                            PIC16F1709 / CPU2
+ *                                  REV J5
+ *	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  *      Copyright (C) 2019,2021 Seriss Corporation.
  *
  *      This program is free software; you can redistribute it and/or modify
@@ -39,11 +38,35 @@
  *      You should have received a copy of the GNU General Public License
  *      along with this program; if not, write to the Free Software
  *      Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ *	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  * For the GPL license, see COPYING in the top level directory.
  * For board revisions, see REVISIONS in the top level directory.
  *
  * ************************************************************************
+ *
+ * V1.4A > Added ICM_ONHOOK
+ *
+ *       > REV-J4 ICM had an apparent design flaw that causes ICM pickup
+ *         to cause CPU1 to reset, causing calls on Hold to release. This
+ *         was apparently due to noise caused by CPU2 and MT8870 starting up
+ *         by relay K5 switching on (bouncing).
+ *
+ *         To solve, REV-J4 was modified into REV-J5 which keeps MT8870 + CPU2
+ *         powered with +5v at all times, avoiding turn on noise. K5 now provides
+ *         +5 to CPU2 and MT8870 to indicate "onhook"; MT8870 enters lower power mode,
+ *         and the PIC ignores all rotary/DTMF and forces buzzers off.
+ *
+ *         Basically, just a change in the trace layout; no new components.
+ *
+ *       > Firmware now reads state of A lead (ICM_ONHOOK) from K5 and disables
+ *         cpu status LED flashing. It debounces the input and prevents a phantom
+ *         rotary "dial 1" on ICM pickup by resetting the rotary debounce struct.
+ *
+ *       > Had to change Config Words -> LVP to OFF to allow RA3 to be used at all;
+ *         In the ON state (default) the state of MCLRE didn't matter, RA3 was
+ *         always resetting the processor..!
+ *
+ *       > Note: These changes could allow SECONDARY_DET to be used again if need be.
  *
  * V1.4: > Removed SECONDARY_DET -- this can't be used; when CPU2 powered down,
  *         it clamps the signal to ground disabling it from being seen by CPU1.
@@ -54,17 +77,20 @@
  *
  */
 
-// REVISION G thru J4 / CPU2                            Port(ABC)
+//                                                      Port(ABC)
+//                                                      |
 //                                   76543210           |Bit# in port
-// Inputs                            ||||||||           ||
+// Sampled Inputs                    ||||||||           ||
+#define ICM_ONHOOK     ((G_porta & 0b00001000)?1:0) // RA3: goes hi when ICM onhook
 #define MT8870_STD     ((G_portc & 0b00100000)?1:0) // RC5: goes hi when dial button pressed
 #define DTMF_a         ((G_portb & 0b01000000)?1:0) // RB6: data bit 'a' from MT8870 of which dial button pressed
 #define DTMF_b         ((G_portb & 0b00100000)?1:0) // RB5: data bit 'b' from MT8870 of which dial button pressed
 #define DTMF_c         ((G_portb & 0b00010000)?1:0) // RB4: data bit 'c' from MT8870 of which dial button pressed
 #define DTMF_d         ((G_portc & 0b00000100)?1:0) // RC2: data bit 'd' from MT8870 of which dial button pressed
-#define ROTARY_PULSE   ((G_portc & 0b00000010)?1:0) // RC1: rotary pulse
+#define ROTARY_PULSE   ((G_portc & 0b00000010)?1:0) // RC1: 0=offhook + in use, 1=dial pulse
+                                                    //      (IC11 goes "off" during dial pulses)
 
-// Outputs
+// Hardware Outputs
 #define CPU_STATUS_LED LATCbits.LATC4               // RC4: hi to turn LED on
                                                     //                            __
 #define EXT1_BUZZ      LATBbits.LATB7               // hi to turn EXT1 buzzer on    |
@@ -80,12 +106,14 @@
 // This must be #defined before #includes
 #define _XTAL_FREQ 8000000UL        // system oscillator speed in HZ (__delay_ms() needs this)
 
-// --- The following section copy/pasted from MPLAB X menu: Production -> Set Configuration Bits -> Generate Source..
+// The following section copy/pasted from MPLAB X menu: Production -> Set Configuration Bits -> Generate Source..
+// These are also set in Window -> Target Memory Views -> Configuration Bits.
+//
 // CONFIG1
 #pragma config FOSC     = INTOSC    // USE INTERNAL OSCILLATOR: Oscillator Selection Bits (INTOSC oscillator: I/O function on CLKIN pin)
 #pragma config WDTE     = OFF       // Watchdog Timer Enable (WDT disabled)
 #pragma config PWRTE    = OFF       // Power-up Timer Enable (PWRT disabled)
-#pragma config MCLRE    = ON        // MCLR Pin Function Select (MCLR/VPP pin function is MCLR)
+#pragma config MCLRE    = OFF       // MCLR Pin Function Select (MCLR/VPP pin function is MCLR)
 #pragma config CP       = OFF       // Flash Program Memory Code Protection (Program memory code protection is disabled)
 #pragma config BOREN    = OFF       // Brown-out Reset Enable (Brown-out Reset disabled)
 #pragma config CLKOUTEN = OFF       // Clock Out Enable (CLKOUT function is disabled. I/O or oscillator function on the CLKOUT pin)
@@ -100,7 +128,7 @@
 #pragma config STVREN  = ON         // Stack Overflow/Underflow Reset Enable (Stack Overflow or Underflow will cause a Reset)
 #pragma config BORV    = LO         // Brown-out Reset Voltage Selection (Brown-out Reset Voltage (Vbor), low trip point selected.)
 #pragma config LPBOR   = OFF        // Low-Power Brown Out Reset (Low-Power BOR is disabled)
-#pragma config LVP     = ON         // Low-Voltage Programming Enable (Low-voltage programming enabled)
+#pragma config LVP     = OFF        // Low-Voltage Programming Enable (Low-voltage programming enabled)
 // --- end section
 
 // PIC hardware includes
@@ -108,13 +136,15 @@
 #include "Debounce.h"               // our signal debouncer module
 
 // DEFINES
-#define uchar unsigned char
-#define uint  unsigned int
-#define ulong unsigned long
 #define ITERS_PER_SEC        500    // while() loop iters per second (Hz). *MUST BE EVENLY DIVISIBLE INTO 1000*
 #define ROTARY_BUZZ_MSECS    800    // how many msecs a rotary dialed extension's buzzer should buzz (almost 1 sec)
 #define ROTARY_MAX_OFF_MSECS 200    // determines when dialing completed
-#define ROTARY_POWERUP_MSECS 500    // how long to wait after powerup before doing rotary detect
+#define ROTARY_POWERUP_MSECS 500    // how long to wait (msecs) after powerup before doing rotary detect
+
+// TYPEDEFS
+typedef unsigned char uchar;
+typedef unsigned int  uint;
+typedef unsigned long ulong;
 
 // Rotary dialing struct
 //     Variables related to rotary dial management
@@ -128,29 +158,29 @@ typedef struct {
 } Rotary;
 
 // GLOBALS
-const int   G_msecs_per_iter = (1000/ITERS_PER_SEC); // #msecs per iter (if ITERS_PER_SEC=125, this is 8)
-int         G_powerup_msecs  = 0;                    // counts up from 0 to 10,000 then stops
-int         G_msec           = 0;                    // counts up from 0 to 1000, steps by G_msecs_per_iter, wraps to zero.
-uchar       G_porta, G_portb, G_portc;               // 8 bit input sample buffers (once per main loop iter)
-volatile char G_buzz_ext     = -1;                   // extension to buzz (-1 for none, 0 for all)
-                                                     // (used by isr() to run buzzer)
+const int     G_msecs_per_iter = (1000/ITERS_PER_SEC); // #msecs per iter (if ITERS_PER_SEC=125, this is 8)
+int           G_powerup_msecs  = 0;                    // counts up from 0 to 10,000 then stops
+int           G_msec           = 0;                    // counts up from 0 to 1000, steps by G_msecs_per_iter, wraps to zero.
+uchar         G_porta, G_portb, G_portc;               // 8 bit input sample buffers (once per main loop iter)
+volatile char G_buzz_ext     = -1;                     // extension to buzz (-1 for none, 0 for all)
+                                                       // (used by isr() to run buzzer)
 // Initialize debounce struct for rotary input values
 //
 //     'value' range:
-//         max_value     20         __________________
+//         max_value    15 .........__________________
 //                                 /
-//         on thresh     15 ....../...................
+//         on thresh    10 ......./...................
 //                               /
-//         off thresh    8 ...../.....................
+//         off thresh    4 ...../.....................
 //                             /
 //                       0 ___/
 //
 void RotaryDebounceInit(Debounce *d) {
     d->value      = 0;
-    d->max_value  = 15; // 20
-    d->on_thresh  = 10; // 15;
-    d->off_thresh = 4;  // 8;
-    d->thresh     = 10; // 15;
+    d->max_value  = 15;
+    d->on_thresh  = 10;
+    d->off_thresh = 4;
+    d->thresh     = d->on_thresh;
 }
 
 // Initialize the Rotary struct's values to zero
@@ -160,6 +190,31 @@ void RotaryInit(Rotary *r) {
     r->on_msecs   = 0;
     r->off_msecs  = 0;
     r->buzz_msecs = 0;
+}
+
+// Initialize debounce struct for ICM_ONHOOK (ICM A lead) signal
+//
+//     Need a long time (200mS) to prevent false trigger of a single rotary digit.
+//
+//     Use status LED to test values; in main(): (1) comment out FlashStatusLed(),
+//     (2) set CPU_STATUS_LED to 1 when onhook, 0 when offhook. (3) Watch for lag
+//     when LED turns on/off during pickup/hangup of ICM. (200mS is easy to see)
+//
+//     'value' range:
+//         max_value   200 .........__________________
+//                                 /
+//         on thresh   150 ......./...................
+//                               /
+//         off thresh   80 ...../.....................
+//                             /
+//                       0 ___/
+//
+void OnhookDebounceInit(Debounce *d) {
+    d->value      = 0;
+    d->max_value  = 200;
+    d->on_thresh  = 150;
+    d->off_thresh = 80;
+    d->thresh     = d->on_thresh;
 }
 
 // Flash the CPU2 STATUS led two quick blinks per second
@@ -221,7 +276,7 @@ void Init() {
     //         ||||||||_ A0 (OUT) EXT8 BUZZ
     //         |||||||__ A1 (OUT) EXT7 BUZZ
     //         ||||||___ A2 (OUT) EXT6 BUZZ
-    //         |||||____ A3 (IN)  unused/MCLR
+    //         |||||____ A3 (IN)  ICM_ONHOOK/MCLR
     //         ||||_____ A4 (IN)  unused
     //         |||______ A5 (IN)  unused
     //         ||_______ X
@@ -244,7 +299,7 @@ void Init() {
     //         |||||||__ C1 (IN)  ROTARY_PULSE
     //         ||||||___ C2 (IN)  DTMF 'd'
     //         |||||____ C3 (OUT) EXT4 BUZZ
-    //         ||||_____ C4 (OUT) CPU STATUS
+    //         ||||_____ C4 (OUT) CPU STATUS LED
     //         |||______ C5 (IN)  MT8870 STD
     //         ||_______ C6 (OUT) EXT3 BUZZ
     //         |________ C7 (OUT) EXT2 BUZZ
@@ -316,6 +371,13 @@ void __interrupt() isr(void) {
 void RotaryReset(Rotary *r) {
     RotaryInit(r);
     G_buzz_ext = -1;        // all buzzer coils off
+}
+
+// Reset debounce struct to assume a particular state
+void DebounceReset(Debounce *d, int val) {
+    d->value  = val;
+    d->thresh = (val==0) ? d->on_thresh    // val off? must meet on_thresh to turn on
+                         : d->off_thresh;  // val on? must meet off_thresh to turn off
 }
 
 // HANDLE ROTARY DIALING ON INTERCOM LINE
@@ -401,6 +463,11 @@ int GetDTMFDigit() {
     return (( DTMF_a ) | (DTMF_b << 1) | (DTMF_c << 2) | (DTMF_d << 3));
 }
 
+// See if ICM is onhook (idle)
+int IsOnhook(Debounce *d) {
+    return DebounceNoisyInput(d, ICM_ONHOOK);
+}
+
 // Buffer the hardware state of PIC's PORTA/B/C all at once.
 //     Run this at the beginning of each iter of the 125Hz main loop.
 //     We then do bit tests on these buffered values, to avoid multiple
@@ -417,6 +484,7 @@ void main(void) {
     int digit;          // dtmf or rotary dialed digit
     Rotary rot;         // rotary management struct
     Debounce rdeb;      // rotary debounce/hysteresis struct
+    Debounce hookdeb;   // onhook (ICM A lead) debounce/hysteresis
 
     // Initialize PIC chip
     Init();
@@ -425,6 +493,7 @@ void main(void) {
     RotaryInit(&rot);
     RotaryReset(&rot);
     RotaryDebounceInit(&rdeb);
+    OnhookDebounceInit(&hookdeb);
 
     // Loop at ITERS_PER_SEC
     //     If ITERS_PER_SEC is 125, this is an 8msec loop
@@ -435,9 +504,6 @@ void main(void) {
 
         // Keep the millisecond counter running..
         G_msec = (G_msec + G_msecs_per_iter) % 1000;   // wrap at 1000
-
-        // Keep status status led flashing
-        FlashCpuStatusLED();
 
 /*** DEBUG
         // USE SCOPE TO DEBUG Debounce OF ROTARY
@@ -465,14 +531,27 @@ void main(void) {
 
         // Loop counter
         if ( ++G_iters > ITERS_PER_SEC ) G_iters = 0;   // wrap to 0 each sec
-
 ***/
-        if ( (digit = GetDTMFDigit()) )
-            G_buzz_ext = digit;                // DTMF dialed digit? Buzz that extension
-        else if ( (digit = GetRotaryDigit(&rot, &rdeb)) != -1 )
-            G_buzz_ext = digit;                // Rotary dialed digit? Buzz that extension
-        else
-            G_buzz_ext = -1;                   // ensure buzzer xstrs not left on
+
+        // Only detect dialing when OFFHOOK..
+        if ( IsOnhook(&hookdeb) ) {
+//DEBUG     CPU_STATUS_LED = 0;
+            G_buzz_ext = -1;                   // ICM onhook? Ensure no buzzing or dialing checks
+            RotaryReset(&rot);
+            DebounceReset(&rdeb, 0);           // reset to 0 (when IC11 is 'on', input is off)
+        } else {
+            // ICM offhook?
+            FlashCpuStatusLED();               // flash status LED when ICM offhook
+//DEBUG     CPU_STATUS_LED = 1;
+
+            // Handle any DTMF or Rotary dialing
+            if ( (digit = GetDTMFDigit()) )
+                G_buzz_ext = digit;            // DTMF dialed digit? Buzz that extension
+            else if ( (digit = GetRotaryDigit(&rot, &rdeb)) != -1 )
+                G_buzz_ext = digit;            // Rotary dialed digit? Buzz that extension
+            else
+                G_buzz_ext = -1;               // ensure buzzer xstrs not left on
+        }
 
         // Loop delay
         __delay_ms(G_msecs_per_iter);

@@ -10,48 +10,11 @@
  *     WPU   - weak pull-up for most inputs
  */
 
-// TODO:
-//
-//     * Check iteration loop speed to make sure it's what it used to be. Try
-//       toggling L1 lamp each iter, and check HZ matches ITERS_PER_SEC on scope.
-//
-//               #            #
-//     #    #   ##            #    #
-//     #    #  # #            #    #
-//     #    #    #            #    #
-//     #    #    #            #######
-//      #  #     #      ##         #
-//       ##    #####    ##         #
-//
-//
-// NOTE: For V1.4 to work with REV-J3 and older, you must: CUT THE TRACE FROM CPU2's RA5:
-//
-//          :
-//          |   CPU 2
-//          |  +5V     RA5     RA4     RA3
-//          |_______________________________ _ _
-//            | 1 |   | 2 | # | 3 |   | 4 |
-//            |___|   |___| # |___|   |___|
-//                      #   #
-//                      #   #
-//    diagonal          #   #  <-- DONT CUT this nearby trace!
-//    trace cut --> \\ #    #
-//      here         \\     #
-//                   #\\    #         REV-J3 BOARD
-//                  #  \\   #          (or older)
-//        via --> (O)       #
-//                          #
-//
-//       This prevents SECONDARY_DET from being dragged to ground when CPU2 is
-//       powered down (ICM on hook). Not an issue for REV-J4 and up, which has
-//       this trace /removed/.
-//
-
 /*
- * File:   main.c
+ * File:   main-cpu1.c
  * Author: Greg Ercolano, erco@seriss.com
- * Version: V1.4
- * Current Board Revision: REV-J4
+ * Version: V1.4a
+ * Current Board Revision: REV-J5
  *
  * Created on Apr 24, 2019, 08:22 AM
  * Compiler: MPLAB X IDE V5.10/5.25/5.50 + XC8 -- Microchip.com
@@ -74,8 +37,7 @@
  *         L2_RING_DET (IN) -- RB7  |______| RB6 -- (IN/OUT) SYNC_ILINK
  *
  *                              PIC16F1709 / CPU1
- *                                   REV J4
- *
+ *                                   REV J5
  *      - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  *      Copyright (C) 2019, 2021 Seriss Corporation.
  *
@@ -99,6 +61,10 @@
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
+ * V1.4a
+ *     * No changes in CPU1 firmware.
+ *       (only changes were in CPU2 firmware to support for REV-J5 boards)
+ *
  * V1.4
  *     * Much changed, this code now depends on REV-J4 board and up.
  *     * Changed INLVLA/B/C from default (TTL?) to Schmitt
@@ -121,7 +87,6 @@
  */
 
 #define ABS(a)          (((a)<0)?-(a):(a))
-
 //                                                      Port(ABC)
 //                                   76543210           |Bit# in port
 // Inputs                            ||||||||           ||
@@ -132,9 +97,9 @@
 #define L1_LINE_DET    ((G_porta & 0b00010000)?0:1) // RA4: low on line detect (0:1 instead of 1:0 to undo negative logic)
 #define L2_LINE_DET    ((G_portc & 0b01000000)?0:1) // RC6: low on line detect (0:1 instead of 1:0 to undo negative logic)
 
-// REV-J3 and older: You MUST cut trace from CPU2 RA5 (see above)
-// for the following SECONDARY_DET to work. This is because when CPU2 is off,
-// it drags SECONDARY_DET low, causing PRIMARY card to think it's secondary.
+// REV-J3 and older: You MUST cut trace from CPU2 RA5 (see above) for this
+// firmware to detect the SECONDARY_DET jumper on J3, otherwise it won't work.
+// Reason: when CPU2 is powered down, it forces SECONDARY_DET low, preventing detection.
 //
 #define SECONDARY_DET  ((G_portc & 0b00001000)?0:1) // RC3: detects if card configured as SECONDARY (JP4)
 #define IS_PRIMARY     (SECONDARY_DET) ? 0 : 1      // true if card is PRIMARY
@@ -194,7 +159,7 @@
 #pragma config FOSC     = INTOSC    // USE INTERNAL OSCILLATOR: Oscillator Selection Bits (INTOSC oscillator: I/O function on CLKIN pin)
 #pragma config WDTE     = OFF       // Watchdog Timer Enable (WDT disabled)
 #pragma config PWRTE    = OFF       // Power-up Timer Enable (PWRT disabled)
-#pragma config MCLRE    = ON        // MCLR Pin Function Select (MCLR/VPP pin function is MCLR)
+#pragma config MCLRE    = OFF       // MCLR Pin Function Select (MCLR/VPP pin function is MCLR)
 #pragma config CP       = OFF       // Flash Program Memory Code Protection (Program memory code protection is disabled)
 #pragma config BOREN    = OFF       // Brown-out Reset Enable (Brown-out Reset disabled)
 #pragma config CLKOUTEN = OFF       // Clock Out Enable (CLKOUT function is disabled. I/O or oscillator function on the CLKOUT pin)
@@ -1434,3 +1399,4 @@ void main(void) {
         ++G_iter;                                      // may go above 250! (we don't want to wrap until timer resets)
     }
 }
+
