@@ -1,0 +1,34 @@
+<!DOCTYPE html><!--
+# vim: autoindent tabstop=8 shiftwidth=4 expandtab softtabstop=4 filetype=python syntax=off
+-->
+<HTML><HEAD>
+    <META CHARSET="UTF-8">
+    <STYLE>
+        @font-face {
+          /*** Great typewriter font - has complete ASCII char set, and free for commercial use.
+               There is also a much larger .woff2 which has UTF8 if need be (which we don't need;
+               this document is pure ASCII text) - erco@seriss.com
+           ***/
+          font-family: 'typewriter';
+          src: url('fonts/TT2020StyleE-Regular.woff2') format('woff2');
+        }
+        body {
+            margin: 30px;
+        }
+    </STYLE>
+</HEAD>
+<BODY>
+<PRE style='font-family:typewriter; font-size:1.0em;'>
+1A2 Firmware Logic Diagram
+==========================
+
+The following flowchart shows the state machine logic in CPU1's firmware
+(the 'HandleLine()' function) that implements the call states for each CO line (Line #1 and #2).
+
+The letters in quotes (next to each state in the diagram) refer to comment markers 
+in the source code where each state transition is handled.
+
+
+    <img src=images/1a2-manual--firmware-logic-diagram.png>
+
+
