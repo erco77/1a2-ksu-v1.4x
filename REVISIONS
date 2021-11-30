@@ -5,20 +5,21 @@ Seriss 1A2 Single Board KSU - Board Revisions
 "REV-J5"
 
   * Fixed problem in REV-J4 where ICM offhook would reset CPU1 due to powerup
-      noise from MT8870/CPU2 due to relay K5 contact bounce, causing calls on Hold
-      to drop during ICM pickup.
+    noise from MT8870/CPU2 due to relay K5 contact bounce, causing calls on Hold
+    to drop during ICM pickup. (J4 was development only, never released)
 
   * CPU2 and MT8870 now receive +5v at all times
 
   * K5 now drives PWDN pin of MT8870 and RA3 of CPU2 (as "ICM_ONHOOK") with +5/GND
 
-  * Firmware (1.4a) now hadnles RA3 as ICM_ONHOOK (A lead sense for ICM line 5)
-    to determine if dialing is to be parsed and status LED should flash
+  * Firmware 1.4a for CPU2: handles RA3 as ICM_ONHOOK (A lead sense for ICM line 5)
+    to determine if dialing is to be parsed and status LED should flash. Due to this,
+    v1.4a will not work on CPU2 for older (pre J5) boards.
 
-"REV J4" <I>(Never released/Development Only)</I>
+"REV J4" <FONT COLOR=RED><B><I>- (Internal Development Use Only)</I></B></FONT>
 
-  * To support the new V1.4 firmware, the trace from CPU2 pin #2 was dropped.
-     (This still allows V1.3x firmware to be used too, but V1.4 is better)
+  * To support the new V1.4 firmware (described below), the trace from CPU2
+    pin #2 was dropped. (Allows V1.3x firmware to work too, but V1.4 is better)
 
   * Small silk screen fixes; "LINE RINGING" section label was overlapping the
     component id for K3.
@@ -81,15 +82,15 @@ Seriss 1A2 Single Board KSU - Board Revisions
     for handling the bidirectional data.
 
 
-    V1.4 uses these PIC features:
+    V1.4 uses these PIC hardware features:
 
-	o TMR0 - Timer 0: times SYNC_ILINK data pulses
-	o TMR1 - Timer 1: timing for main loop's ITERS_PER_SEC
-	o TMR2 - Timer 2: PWM1/CCP1 use this for the BUZZ_60HZ signal
+	o TMR0 - Timer 0: used for SYNC_ILINK bidir data timing
+	o TMR1 - Timer 1: speed of timing for main loop (ITERS_PER_SEC)
+	o TMR2 - Timer 2: sets speed for PWM1/CCP1 for BUZZ_60HZ signal (buzz ringing)
 	o PPS  - Peripheral Pin Select - assigns PWM to the buzzer pin, then TRIS for off condition
-	o CCP  - Capture/Compare/PWM
-	o PWM  - Pulse Width Modulation
-	o IOC  - Interrupt On Change (edge transitions) for reading bidir data
+	o CCP  - Capture/Compare/PWM    \_ Used to generate
+	o PWM  - Pulse Width Modulation /  60Hz for buzz ringing
+	o IOC  - Interrupt On Change - for reading bidirectional data
 
 
 "REV J3"
