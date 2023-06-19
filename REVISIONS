@@ -2,7 +2,46 @@
 Seriss 1A2 Single Board KSU - Board Revisions
 (Revisions shown newest first, oldest last)
 --------------------------------------------------------------------------------
+
+"REV-J6A" May 2023
+  * Increase SB540 holes: 48 to 54 mils
+  * Resize barrel connector hole widths: front=98mil, back=115mil
+  * Removed unused +/- symbols on solder layer
+  * Change RING TRIG to terminal screws
+  * Line status LEDs lowered 25mil
+  * EXT RING TRIG connector changed from pluggable to screw type
+    (to avoid accidental end user wiring mistakes)
+  * Thicken power traces, reroutes for clearance
+  * New C8 moved left
+  * Reroute JP3 to simplify + clearance for thicker ground trace
+
+"REV-J6" May 2023 <FONT COLOR=RED><B><I>- (Internal Development Use Only)</I></B></FONT>
+  * Added reverse polarity protection (SB540 schottkey barrier diode)
+  * Added ICM noise filter cap (C8) to prevent low current switching noise problems
+  * Added support for a 2.5mm/5mm barrel connector for power input
+  * Renumbered diodes
+  * Added board dimensions to board layout file
+  * Enlarged all 1W resistor pad/hole diameters from 76/35 mils to 78/38.
+  * Shrink phoenix connectors from 125/54 to 125/52
+  * Shrink 1n4148 pads from 75/35 to 75/32
+  * Changed ICM tip/ring resistors from 60ohm to 160 ohm
+
+"REV-J5a"
+  * Parts list simplification: 470 ohm resistors (R17 + R18) dropped in favor of 1K replacement.
+    (CPU status LEDs were too bright).
+
+  * 0.1uF cap pad spacing widened to match 1n4148 (to aid assembly jig)
+
+  * 1n4004 pads/vias enlarged +3mil (35/75 -> 38/78)
+
+  * Fixed amphenol numbering on lower silk
+
+  * Small routing simplifications, 12V trace thickness increase from 50 -> 60mil.
+
+  * DRC rule change: Copper:11mil, Drillings:20, Min:32, Track Min:6, Annular Min:7, Silk Min:3
+
 "REV-J5"
+  (Production run)
 
   * Fixed problem in REV-J4 where ICM offhook would reset CPU1 due to powerup
     +5v switched by relay K5 causing an inrush surge to deenergized 0.1uF cap
