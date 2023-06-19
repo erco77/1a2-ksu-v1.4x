@@ -61,6 +61,9 @@
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
+ * V1.4b
+ *     * Prevent buzzer oscillator from running when no ringing is present.
+ *
  * V1.4a
  *     * No changes in CPU1 firmware.
  *       (only changes were in CPU2 firmware to support for REV-J5 boards)
@@ -1185,7 +1188,8 @@ inline void SampleInputs() {
 //     60hz switching noise as background radiation on the board..
 //
 inline void HandleBuzzRing() {
-    Buzz60hz(G_int.ring_relay ? 1 : 0);
+    //Buzz60hz(G_int.ring_relay ? 1 : 0); // v1.4a
+    Buzz60hz((IsAnyLineRinging() || IsAnyRemoteLineRinging()) && G_int.ring_relay ? 1 : 0 ); // v1.4b
 }
 
 // Handle running or stopping the interrupter
